@@ -16,4 +16,4 @@ Repositório destinado aos trabalhos da disciplina INE5424: Sistemas Operacionai
 #### Enunciado
 > Usando como modelo a implementação do mediador de hardware do EPOS para a NIC PCNet32 da AMD, implemente um mediador (i.e. device driver) para uma NIC suportada pelo QEMU para a arquitetura Intel que ainda não exista para o EPOS. Cada grupo deve escolher uma NIC diferente (considere a família 8255x da Intel, que tem aproximadamente 10 variações implementadas pelo QEMU).  Projete e implemente uma aplicação de teste capaz de validar o correto funcionamento do mediador.
 
-* **NIC:** i82550
+* **NIC:** i82557a
