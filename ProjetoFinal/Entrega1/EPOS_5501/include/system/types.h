@@ -146,7 +146,6 @@ template<typename Family> class NIC;
 class PCNet32;
 class C905;
 class E100;
-class i82557a;
 class CC2538;
 class M95;
 class AT86RF;
