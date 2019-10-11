@@ -1,15 +1,21 @@
 
 Setting up this machine as follows: 
-  Processor:    1 x IA32 at 2201 MHz (BUS clock = 125 MHz)
+  Processor:    1 x IA32 at 2202 MHz (BUS clock = 125 MHz)
   Memory:       262144 Kbytes [0x00000000:0x10000000]
   User memory:  261820 Kbytes [0x00000000:0x0ffaf000]
-  PCI aperture: 28232 Kbytes [0xfd000000:0xfeb92020]
+  PCI aperture: 28612 Kbytes [0xfd000000:0xfebf1000]
   Node Id:      will get from the network!
   Position:       (10,10,0)
   Setup:        22272 bytes
-  APP code:     49232 bytes	data: 608 bytes
+  APP code:     53776 bytes	data: 576 bytes
+STAT/ACK = CNA 
+CU = CUS_SUSPENDED
+RU = RUS_READY
 NIC Test
   MAC: 56:34:12:0:54:9
+STAT/ACK = CNA 
+CU = CUS_SUSPENDED
+RU = RUS_READY
 Statistics
 Tx Packets: 1
 Tx Bytes:   1500
