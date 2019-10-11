@@ -10,6 +10,7 @@
 #include <utility/bitmap.h>
 #include <machine/nic.h>
 #include <network/ipv4/arp.h>
+#include <process.h>
 
 __BEGIN_SYS
 
@@ -414,18 +415,12 @@ public:
     static SOS* ponteiro;
 
     SOS(unsigned int unit);
+    ~SOS();
 
-    void send() {
-        using namespace EPOS;
-        OStream cout;
-        cout << "SOS::SEND" << endl;
-    }
-    void rcv() {
-        using namespace EPOS;
-        OStream cout;
-        cout << "SOS::RCV" << endl;
-    }
-    
+    void send(char data[]);
+    void rcv(char data[]);
+    void statistics();
+
     static void init(unsigned int unit);
 
     static void attach(Observer * obs, const Protocol & prot) { _observed.attach(obs, prot); }
@@ -433,10 +428,11 @@ public:
     
 private:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
-    void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot);
 
 protected:
     static Observed _observed;
+    static NIC<Ethernet> * nic; // TSTP static e IP nao
+    Semaphore* _semaphore;
 
 };
 

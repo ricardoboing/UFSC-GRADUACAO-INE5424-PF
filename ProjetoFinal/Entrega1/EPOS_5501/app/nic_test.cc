@@ -7,50 +7,32 @@
 using namespace EPOS;
 OStream cout;
 
-
 int main()
 {
     cout << "NIC Test" << endl;
-
     NIC<Ethernet> * nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
-
-    NIC<Ethernet>::Address src, dst;
-    NIC<Ethernet>::Protocol prot;
-    char data[nic->mtu()];
-
-    cout << "SRC: " << src;
-    cout << " | DST: " << dst << endl;
-
     NIC<Ethernet>::Address self = nic->address();
-    cout << "  MAC: " << self << endl;
 
-    cout << "mtu: " << nic->mtu() << endl;
+    char data[1000];
 
     SOS* sos = SOS::ponteiro;
-    sos->send();
 
     if(self[5] % 2) { // sender
         Delay (5000000);
         cout << "1" << endl;
-        for(int i = 0; i < 3; i++) {
-            memset(data, '0', nic->mtu());
-            data[nic->mtu() - 1] = '\n';
-            nic->send(nic->broadcast(), 0x8888, data, nic->mtu());
+        for(int i = 0; i < 10; i++) {
+            memset(data, '2', 1000);
+            data[1000 - 1] = '\n';
+            
+            sos->send(data);
         }
     } else { // receiver
         cout << "2" << endl;
-        //for(int i = 0; i < 3; i++) {
-            cout << " ??? ";
-            //while (true);
-            nic->receive(&src, &prot, data, nic->mtu());
-            cout << "  Data: " << data;
-        //}
+        sos->rcv(data);
+        cout << " data " << data << endl;
     }
 
-    NIC<Ethernet>::Statistics stat = nic->statistics();
-    cout << "Statistics\n"
-         << "Tx Packets: " << stat.tx_packets << "\n"
-         << "Tx Bytes:   " << stat.tx_bytes << "\n"
-         << "Rx Packets: " << stat.rx_packets << "\n"
-         << "Rx Bytes:   " << stat.rx_bytes << "\n";
+    sos->statistics();
+
+    delete sos;
 }

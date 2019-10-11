@@ -68,8 +68,8 @@ int PCNet32::receive(Address * src, Protocol * prot, void * data, unsigned int s
     // Wait for a received frame and seize it
     unsigned int i = _rx_cur;
     for(bool locked = false; !locked; ) {
-        for(; _rx_ring[i].status & Rx_Desc::OWN; ++i %= RX_BUFS);// cout << "AQUI???" << endl;
-        
+        for(; _rx_ring[i].status & Rx_Desc::OWN; ++i %= RX_BUFS) cout << "AQUI???" << endl;
+        //cout << "nesse daqui" << endl;
         locked = _rx_buffer[i]->lock();
     }
     _rx_cur = (i + 1) % RX_BUFS;
@@ -329,10 +329,17 @@ void PCNet32::handle_int()
                                      << ",d=" << frame->data<void>() << ",s=" << buf->size() << ")" << endl;
 
                     db<PCNet32>(INF) << "PCNet32::handle_int:desc[" << i << "]=" << desc << " => " << *desc << endl;
-
+                    using namespace EPOS;
+                    OStream cout;
+                    cout << "PCNet32::handle_int" << endl;
                     IC::disable(IC::irq2int(_irq));
-                    if(!notify(frame->header()->prot(), buf)) // No one was waiting for this frame, so let it free for receive()
+                    buf->unlock();
+                    if(!notify(frame->header()->prot(), buf)) { // No one was waiting for this frame, so let it free for receive()
                         free(buf);
+                        cout << "PCNet32::handle_int free" << endl;
+                    } else {
+                        cout << "PCNet32::handle_int not free" << endl;
+                    }
                     // TODO: this serialization is much too restrictive. It was done this way for students to play with
                     IC::enable(IC::irq2int(_irq));
                 }
