@@ -6,7 +6,7 @@
 #=========================================================================
 # PATHS
 #=========================================================================
-EPOS=/home/ricardo/EPOS/ine5424
+EPOS=/home/ad/UFSC-GRADUACAO-INE5424-PF/ProjetoFinal/Entrega1/EPOS_5501
 TMP=/tmp
 INC=$EPOS/include
 SRC=$EPOS/src

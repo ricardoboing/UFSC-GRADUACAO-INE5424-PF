@@ -796,7 +796,7 @@ class i82557a:public NIC<Ethernet>, private i8255x //works with QEMU
       private:
           static const bool HYSTERICALLY_DEBUGGED = true;
 
-}
+};
 
 class E100: public NIC<Ethernet>, private IF<Traits<E100>::qemu, i82559ER, i82559c>::Result
 {

@@ -121,13 +121,13 @@ void i82557a::init(unsigned int unit)
     db<Init, i82557a>(INF) << "i82557a::init: DMA_Buffer=" << reinterpret_cast<void *>(dma_buf) << " : " << *dma_buf << endl;
 
     // Initialize the device
-    E100 * dev = new (SYSTEM) i82557a(unit, io_mem, irq, dma_buf);
+    i82557a * dev = new (SYSTEM) i82557a(unit, io_mem, irq, dma_buf);
 
     // Register the device
     _devices[unit].device = dev;
     _devices[unit].interrupt = IC::irq2int(irq);
 
-    db<E100>(INF) << "i82557a::init: interrupt: " << _devices[unit].interrupt << ", irq: " << irq << endl;
+    db<i82557a>(INF) << "i82557a::init: interrupt: " << _devices[unit].interrupt << ", irq: " << irq << endl;
 
     // Install interrupt handler
     IC::int_vector(_devices[unit].interrupt, &int_handler);
