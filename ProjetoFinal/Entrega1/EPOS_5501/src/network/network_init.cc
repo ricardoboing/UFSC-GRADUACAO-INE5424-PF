@@ -8,6 +8,10 @@ void Network_Common::init()
 {
     db<Init, Network>(TRC) << "Network::init()" << endl;
 
+    using namespace EPOS;
+    OStream cout;
+    //cout << "oi";
+
     Initializer<0>::init();
 
 #ifdef __ipv4__

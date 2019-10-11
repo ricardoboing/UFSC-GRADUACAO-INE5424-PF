@@ -404,6 +404,17 @@ protected:
     static Observed _observed; // shared by all IP instances, so the default for binding on a port is for all IPs
 };
 
+class SOS: private NIC<Ethernet>::Observer {
+public:
+    SOS(unsigned int unit);
+    void sendd();
+    static void init(unsigned int unit);
+
+    //SOS* _ponteiro;
+
+    //void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
+};
+
 __END_SYS
 
 #include <network/ipv4/icmp.h>

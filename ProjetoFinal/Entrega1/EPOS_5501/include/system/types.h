@@ -190,6 +190,7 @@ class TSTPOE;
 class TSTP;
 template<typename NIC, typename Network, unsigned int HTYPE> class ARP;
 class IP;
+class SOS;
 class ICMP;
 class UDP;
 class TCP;

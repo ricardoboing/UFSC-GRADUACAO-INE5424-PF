@@ -62,10 +62,14 @@ int PCNet32::receive(Address * src, Protocol * prot, void * data, unsigned int s
 {
     db<PCNet32>(TRC) << "PCNet32::receive(s=" << *src << ",p=" << hex << *prot << dec << ",d=" << data << ",s=" << size << ") => " << endl;
 
+    using namespace EPOS;
+    OStream cout;
+    
     // Wait for a received frame and seize it
     unsigned int i = _rx_cur;
     for(bool locked = false; !locked; ) {
-        for(; _rx_ring[i].status & Rx_Desc::OWN; ++i %= RX_BUFS);
+        for(; _rx_ring[i].status & Rx_Desc::OWN; ++i %= RX_BUFS) cout << "AQUI???" << endl;
+        
         locked = _rx_buffer[i]->lock();
     }
     _rx_cur = (i + 1) % RX_BUFS;
@@ -365,6 +369,10 @@ void PCNet32::handle_int()
 
 void PCNet32::int_handler(const IC::Interrupt_Id & interrupt)
 {
+    using namespace EPOS;
+    OStream cout;
+    cout << "interrupt" << endl;
+
     PCNet32 * dev = get_by_interrupt(interrupt);
 
     db<PCNet32>(TRC) << "PCNet32::int_handler(int=" << interrupt << ",dev=" << dev << ")" << endl;

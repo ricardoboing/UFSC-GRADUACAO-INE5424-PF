@@ -142,7 +142,7 @@ template<> struct Traits<Scratchpad>: public Traits<Machine_Common>
 
 template<> struct Traits<Ethernet>: public Traits<Machine_Common>
 {
-    typedef LIST<E100> DEVICES;
+    typedef LIST<PCNet32> DEVICES;
     static const unsigned int UNITS = DEVICES::Length;
 
     static const bool enabled = (Traits<Build>::NODES > 1) && (UNITS > 0);
@@ -158,7 +158,6 @@ template<> struct Traits<PCNet32>: public Traits<Machine_Common>
 
     static const bool promiscuous = false;
 };
-
 template<> struct Traits<E100>: public Traits<Machine_Common>
 {
     static const unsigned int UNITS = Traits<Ethernet>::DEVICES::Count<E100>::Result;

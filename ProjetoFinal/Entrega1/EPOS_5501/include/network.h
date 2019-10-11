@@ -16,4 +16,8 @@
 #include <network/tstp/tstp.h>
 #endif
 
+#ifdef __sos__
+#include <network/sos/sos.h>
+#endif
+
 #endif

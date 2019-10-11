@@ -390,6 +390,10 @@ void Agent::handle_chronometer()
 
 void Agent::handle_ipc()
 {
+    using namespace EPOS;
+    OStream cout;
+    
+    cout << "Agent::handle_ipc" << endl;
     Adapter<Port<IPC>> * comm = reinterpret_cast<Adapter<Port<IPC>> *>(id().unit());
     Result res = 0;
 
