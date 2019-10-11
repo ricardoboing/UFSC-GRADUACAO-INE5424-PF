@@ -481,6 +481,8 @@ protected:
     };
 };
 
+
+
 class i82559c: public i8255x // Works on E100 (i82559c) physical hardware
 {
 protected:
@@ -518,6 +520,281 @@ protected:
             return _frame;
     }
     };
+
+};
+
+// i82557a PC Ethernet NIC
+class i82557a:public NIC<Ethernet>, private i8255x //works with QEMU
+{
+    friend class Machine_Common;
+
+  private:
+    // PCI ID
+    static const unsigned int PCI_VENDOR_ID = 0x8086;
+    static const unsigned int PCI_DEVICE_ID = 0x1229;
+    static const unsigned int PCI_REG_IO = 1;
+    static const unsigned int PCI_REG_MEM = 0;
+
+    static const unsigned int TBD_ARRAY_SIZE = 1;
+
+    struct Transmit_Buffer_Descriptor {
+        volatile Reg32 address;
+        volatile Reg16 even_word;
+        volatile Reg16 odd_word;
+
+        enum {
+            // AND-masks
+            SIZE_MASK   =   0x7fff, // Take into account half word
+            EL_MASK     =   0x1     // Take into account half word
+        };
+
+        bool el() {
+            return odd_word & EL_MASK;
+        }
+
+        Reg16 size() {
+            return even_word & SIZE_MASK;
+        }
+
+        void size(Reg16 size) {
+            even_word = SIZE_MASK & size; // using SIZE_MASK to ensure that the last bit of even_word is zero.
+        }
+    };
+    typedef Transmit_Buffer_Descriptor TBD;
+
+    /* QEMU 2.4 requires from the TCB to use a TBD even while using simplified
+     * memory structure.
+     * Because of that, we keep tbd_array = 0xFFFFFFFF and tbd_number = 0
+     * Such workaround is not expected to work on a physical E100.
+     * For that, prefer using i82559c instead.
+     * */
+    struct Tx_Desc: public i8255x::Base_Tx_Desc {
+        TBD tbds[TBD_ARRAY_SIZE];
+
+        char _frame[FRAME_SIZE]; // XXX: Since TBD is in use, this could be placed at another place (e.g. TX Buffer).
+
+        Reg32 _pad[3];
+
+        Tx_Desc(Reg32 phy_of_next) : i8255x::Base_Tx_Desc(phy_of_next) {
+            for (unsigned int i = 0; i < TBD_ARRAY_SIZE; i++) {
+                /// tbds[i].address = reinterpret_cast<Reg32>(_frame); /// XXX: maybe must be the physical address of _frame here.
+                tbds[i].address = (phy_of_next - align128(sizeof(Tx_Desc))) + (reinterpret_cast<Reg32>(_frame) - reinterpret_cast<Reg32>(this));
+                // db<void>(WRN) << "(0) frame: " << reinterpret_cast<void *>(_frame) << " this: " << this << endl;
+                // db<void>(WRN) << "(1) _frame: " << reinterpret_cast<void *>(tbds[i].address) << endl;
+                // unsigned long present;
+                // db<void>(WRN) << "(2) _frame: " << reinterpret_cast<void *>(MMU_Aux::physical_address(reinterpret_cast<Reg32>(_frame), &present)) << endl;
+
+                tbds[i].size(FRAME_SIZE);
+            }
+        }
+
+        friend Debug & operator<<(Debug & db, const Tx_Desc & d) {
+            db << "{" << reinterpret_cast<void *>(d.tbd_array) << ", "
+               << d.tcb_byte_count << ", "
+               << reinterpret_cast<void *>(d.threshold) << ", "
+               << reinterpret_cast<void *>(d.tbd_number)
+               << "}";
+
+            return db;
+        }
+
+        char * frame() {
+            return _frame;
+        }
+    };
+    // Mode
+    static const bool promiscuous = Traits<i82557a>::promiscuous;
+
+    // Transmit and Receive Ring Buffer sizes
+    static const unsigned int UNITS = Traits<i82557a>::UNITS;
+    static const unsigned int TX_BUFS = Traits<i82557a>::SEND_BUFFERS;
+    static const unsigned int RX_BUFS = Traits<i82557a>::RECEIVE_BUFFERS;
+    static const unsigned int DMA_BUFFER_SIZE =
+        ((sizeof(ConfigureCB) + 15) & ~15U) +
+        ((sizeof(MACaddrCB) + 15) & ~15U) +
+        ((sizeof(struct mem) + 15) & ~15U) +
+         RX_BUFS * ((sizeof(Rx_Desc) + 15) & ~15U) +
+         TX_BUFS * ((sizeof(Tx_Desc) + 15) & ~15U) +
+         RX_BUFS * ((sizeof(Buffer) + 15) & ~15U)  +
+         TX_BUFS * ((sizeof(Buffer) + 15) & ~15U); // align128() cannot be used here
+
+     // Interrupt dispatching binding
+    struct Device {
+        i82557a * device;
+        unsigned int interrupt;
+    };
+
+  protected:
+      i82557a(unsigned int unit, const Log_Addr & io_mem, const IO_Irq & irq, DMA_Buffer * dma_buf);
+
+    public:
+        ~i82557a();
+
+        int send(const Address & dst, const Protocol & prot, const void * data, unsigned int size);
+        int receive(Address * src, Protocol * prot, void * data, unsigned int size);
+
+        Buffer * alloc(const Address & dst, const Protocol & prot, unsigned int once, unsigned int always, unsigned int payload);
+        void free(Buffer * buf);
+        int send(Buffer * buf);
+
+        const Address & address() { return _address; }
+        void address(const Address & address) { _address = address; }
+
+        const Statistics & statistics() { return _statistics; }
+
+        void reset();
+
+        static i82557a * get(unsigned int unit = 0) { return get_by_unit(unit); }
+
+    private:
+        void handle_int();
+
+        static void int_handler(const IC::Interrupt_Id & interrupt);
+
+        bool verifyPendingInterrupts(void);
+
+        unsigned short eeprom_read(unsigned short * addr_len, unsigned short addr);
+        unsigned char eeprom_mac_address(Reg16 addr);
+
+        void i82557a_flush() { read8(&_csr->scb.status); }
+        void i82557a_disable_irq() { write8(irq_mask_all, &_csr->scb.cmd_hi); }
+        void i82557a_enable_irq() { write8(irq_mask_none, &_csr->scb.cmd_hi); }
+
+        int self_test();
+
+        void software_reset() {
+            write32(SELECTIVE_RESET, &_csr->port);
+            i82557a_flush(); udelay(20 * 1000);
+            write32(SOFTWARE_RESET, &_csr->port);
+            i82557a_flush(); udelay(20 * 1000);
+            // disable IRQs
+            i82557a_disable_irq();
+            i82557a_flush(); udelay(1000);
+        }
+
+        void i82557a_configure(void);
+
+        static i82557a * get_by_unit(unsigned int unit) {
+            assert(unit < UNITS);
+            return _devices[unit].device;
+        }
+
+        static i82557a * get_by_interrupt(unsigned int interrupt) {
+            for(unsigned int i = 0; i < UNITS; i++)
+                if(_devices[i].interrupt == interrupt)
+                    return _devices[i].device;
+
+            db<i82557a>(WRN) << "E100::get_by_interrupt(" << interrupt << ") => no device bound!" << endl;
+            return 0;
+        }
+
+        static void init(unsigned int unit);
+
+      private:
+         void print_csr() {
+              db<i82557a>(WRN) << "CSR = " << _csr << endl;
+              // db<E100>(WRN) << "CSR.SCB: " << csr->scb << endl;
+              db<i82557a>(WRN) << "status = " << hex << _csr->scb.status << endl;
+              db<i82557a>(WRN) << "stat_ack = " << hex << _csr->scb.stat_ack << endl;
+              db<i82557a>(WRN) << "SCB Command: " << reinterpret_cast<void *>(*reinterpret_cast<unsigned long *>(_csr)) << endl;
+              db<i82557a>(WRN) << "cmd_lo: [" << _csr->scb.cmd_lo << "] => " << _csr->scb.cmd_lo << endl;
+              db<i82557a>(WRN) << "cmd_hi: [" << _csr->scb.cmd_hi << "] => " << _csr->scb.cmd_hi << endl;
+              db<i82557a>(WRN) << "gen_ptr: [" << _csr->scb.gen_ptr << "] => " << *reinterpret_cast<volatile Reg32 *>(&_csr->scb.gen_ptr) << endl;
+              db<i82557a>(WRN) << "port: [" << _csr->port << "] => " << *reinterpret_cast<volatile Reg32 *>(&_csr->port) << endl;
+              // db<i82557a>(WRN) << "flash_ctrl: [" << _csr->flash_ctrl << "] => " << *reinterpret_cast<volatile Reg16 *>(&_csr->flash_ctrl) << endl;
+              db<i82557a>(WRN) << "eeprom_ctrl_lo: [" << _csr->eeprom_ctrl_lo << "] => " << *reinterpret_cast<volatile Reg8 *>(&_csr->eeprom_ctrl_lo) << endl;
+              db<i82557a>(WRN) << "eeprom_ctrl_hi: [" << _csr->eeprom_ctrl_hi << "] => " << *reinterpret_cast<volatile Reg8 *>(&_csr->eeprom_ctrl_hi) << endl;
+              db<i82557a>(WRN) << "mdi_ctrl: [" << _csr->mdi_ctrl << "] => " << *reinterpret_cast<volatile Reg32 *>(&_csr->mdi_ctrl) << endl;
+              db<i82557a>(WRN) << "rx_dma_count: [" << _csr->rx_dma_count << "] => " << *reinterpret_cast<volatile Reg32 *>(&_csr->rx_dma_count) << endl;
+          }
+
+          void print_status() {
+              /* The SCB Status word is not updated immediately in response to SCB
+               * commands and this method is not currently taking that into account. */
+
+              // SCB Status Word, STAT/ACK bits
+              db<i82557a>(WRN) << "STAT/ACK = ";
+
+              Reg8 stat_ack = read8(&_csr->scb.stat_ack);
+
+              if (stat_ack == NOT_PRESENT) {
+                  db<i82557a>(WRN) << "NOT_PRESENT" << endl;
+              } else if (stat_ack == NOT_OURS) {
+                  db<i82557a>(WRN) << "NOT_OURS" << endl;
+              } else {
+                  if (stat_ack & CX_TNO) db<i82557a>(WRN) << "CX_TNO ";
+                  if (stat_ack & FR) db<i82557a>(WRN) << "FR ";
+                  if (stat_ack & CNA) db<i82557a>(WRN) << "CNA ";
+                  if (stat_ack & RNR) db<i82557a>(WRN) << "RNR ";
+                  if (stat_ack & MDI) db<i82557a>(WRN) << "MDI ";
+                  if (stat_ack & SWI) db<i82557a>(WRN) << "SWI ";
+                  if (stat_ack & FCP) db<i82557a>(WRN) << "FCP ";
+
+                  db<i82557a>(WRN) << endl;
+              }
+
+              Reg8 status = read8(&_csr->scb.status);
+              db<i82557a>(WRN) << "CU = ";
+              if (((status & CUS_MASK) >> CUS_SHIFT) == CUS_HQP_ACTIVE)
+                  db<i82557a>(WRN) << "CUS_HQP_ACTIVE" << endl;
+              else if (((status & CUS_MASK) >> CUS_SHIFT) == CUS_LPQ_ACTIVE)
+                  db<i82557a>(WRN) << "CUS_LPQ_ACTIVE" << endl;
+              else if (((status & CUS_MASK) >> CUS_SHIFT) == CUS_SUSPENDED)
+                  db<i82557a>(WRN) << "CUS_SUSPENDED" << endl;
+              else if (((status & CUS_MASK) >> CUS_SHIFT) == CUS_IDLE)
+                  db<i82557a>(WRN) << "CUS_IDLE" << endl;
+              else
+                  db<i82557a>(WRN) << "Invalid CU status " << endl;
+
+              db<i82557a>(WRN) << "RU = ";
+              if (((status & RUS_MASK) >> RUS_SHIFT) == RUS_READY)
+                  db<i82557a>(WRN) << "RUS_READY" << endl;
+              else if (((status & RUS_MASK) >> RUS_SHIFT) == RUS_NO_RESOURCES)
+                  db<i82557a>(WRN) << "RUS_NO_RESOURCES" << endl;
+              else if (((status & RUS_MASK) >> RUS_SHIFT) == RUS_SUSPENDED)
+                  db<i82557a>(WRN) << "RUS_SUSPENDED" << endl;
+              else if (((status & RUS_MASK) >> RUS_SHIFT) == RUS_IDLE)
+                  db<i82557a>(WRN) << "RUS_IDLE" << endl;
+              else
+                  db<i82557a>(WRN) << "Invalid RU status" << endl;
+          }
+
+      private:
+          unsigned int _unit;
+
+          Log_Addr _io_mem;
+          IO_Irq _irq;
+
+          volatile unsigned int _rx_ruc_no_more_resources;
+
+          ConfigureCB * configCB;
+          Phy_Addr _configCB_phy;
+
+          MACaddrCB * macAddrCB;
+          Phy_Addr _macAddrCB_phy;
+
+          struct mem * dmadump;
+          Phy_Addr _dmadump_phy;
+
+          int _rx_cur, _rx_last_el;
+          Rx_Desc * _rx_ring;
+          Phy_Addr _rx_ring_phy;
+
+          int _tx_cur, _tx_prev;
+          Tx_Desc * _tx_ring;
+          Phy_Addr _tx_ring_phy;
+
+          unsigned int _tx_frames_sent;
+
+          Buffer * _rx_buffer[RX_BUFS];
+          Buffer * _tx_buffer[TX_BUFS];
+
+          DMA_Buffer * _dma_buffer;
+
+          static Device _devices[UNITS];
+
+      private:
+          static const bool HYSTERICALLY_DEBUGGED = true;
 
 };
 
