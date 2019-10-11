@@ -146,6 +146,10 @@ public:
     void attach(Concurrent_Observer<D, C> * o, const C & c) {
         db<Observeds, Semaphore>(TRC) << "Concurrent_Observed::attach(obs=" << o << ",cond=" << c << ")" << endl;
 
+        using namespace EPOS;
+        OStream cout;
+        cout << "Concurrent_Observed::attach" << o << c << endl;
+
         o->_link = Element(o, c);
         _observers.insert(&o->_link);
     }
@@ -158,6 +162,10 @@ public:
 
     bool notify(const C & c, D * d) {
         bool notified = false;
+
+        using namespace EPOS;
+        OStream cout;
+        cout << "Concurrent_Observed::notify" << c << d << endl;
 
         db<Observeds, Semaphore>(TRC) << "Concurrent_Observed::notify(this=" << this << ",cond=" << c << ")" << endl;
 

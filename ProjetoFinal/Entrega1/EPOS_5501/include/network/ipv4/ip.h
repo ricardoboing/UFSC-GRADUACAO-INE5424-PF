@@ -406,13 +406,38 @@ protected:
 
 class SOS: private NIC<Ethernet>::Observer {
 public:
+    typedef unsigned char Protocol;
+    typedef Ethernet::Buffer Buffer;
+    typedef Data_Observer<Buffer, Protocol> Observer;
+    typedef Data_Observed<Buffer, Protocol> Observed;
+
+    static SOS* ponteiro;
+
     SOS(unsigned int unit);
-    void sendd();
+
+    void send() {
+        using namespace EPOS;
+        OStream cout;
+        cout << "SOS::SEND" << endl;
+    }
+    void rcv() {
+        using namespace EPOS;
+        OStream cout;
+        cout << "SOS::RCV" << endl;
+    }
+    
     static void init(unsigned int unit);
 
-    //SOS* _ponteiro;
+    static void attach(Observer * obs, const Protocol & prot) { _observed.attach(obs, prot); }
+    static void detach(Observer * obs, const Protocol & prot) { _observed.detach(obs, prot); }
+    
+private:
+    void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
+    void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot);
 
-    //void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
+protected:
+    static Observed _observed;
+
 };
 
 __END_SYS

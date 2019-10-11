@@ -63,7 +63,9 @@ private:
 inline void Observed::attach(Observer * o)
 {
     db<Observers>(TRC) << "Observed::attach(obs=" << o << ")" << endl;
-
+    using namespace EPOS;
+    OStream cout;
+    cout << "Observed::attach" << endl;
     _observers.insert(&o->_link);
 }
 

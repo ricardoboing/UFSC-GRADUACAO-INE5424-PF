@@ -1,6 +1,7 @@
 // EPOS IP Protocol Initialization
 
 #include <network/ipv4/ip.h>
+#include <machine/nic.h>
 
 #ifdef __ipv4__
 
@@ -44,18 +45,29 @@ void IP::init(unsigned int unit)
 
     using namespace EPOS;
     OStream cout;
-    cout << " oi2" << endl;
+    cout << "IP::init" << endl;
 
     SOS::init(1);
+}
+
+SOS::SOS(unsigned int unit) {
+    using namespace EPOS;
+    OStream cout;
+    cout << "SOS::SOS" << endl;
+
+    NIC<Ethernet> * nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
+    nic->attach(this, NIC<Ethernet>::PROTO_IP);
 }
 
 void SOS::init(unsigned int unit)
 {
     using namespace EPOS;
     OStream cout;
-    cout << " oi3" << endl;
+    cout << "SOS::init" << endl;
 
-    //SOS::ponteiro = new (SYSTEM) SOS(1);
+    SOS::ponteiro = new (SYSTEM) SOS(1);
+
+    
 }
 
 __END_SYS

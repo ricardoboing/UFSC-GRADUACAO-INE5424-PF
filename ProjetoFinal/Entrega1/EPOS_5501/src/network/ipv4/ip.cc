@@ -18,6 +18,8 @@ IP::Router IP::_router;
 IP::Reassembling IP::_reassembling;
 IP::Observed IP::_observed;
 
+SOS* SOS::ponteiro;
+
 // Methods
 void IP::config_by_info()
 {
@@ -185,7 +187,18 @@ unsigned short IP::checksum(const void * data, unsigned int size)
     return ~sum;
 }
 
-
+void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot, Buffer * buf)
+{
+    using namespace EPOS;
+    OStream cout;
+    cout << "update" << endl;
+}
+void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot)
+{
+    using namespace EPOS;
+    OStream cout;
+    cout << "update 2" << endl;
+}
 
 __END_SYS
 

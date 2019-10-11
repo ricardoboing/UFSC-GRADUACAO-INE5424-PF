@@ -26,7 +26,8 @@ int main()
 
     cout << "mtu: " << nic->mtu() << endl;
 
-    //SOS* sos = new (SYSTEM) SOS(1);
+    SOS* sos = SOS::ponteiro;
+    sos->send();
 
     if(self[5] % 2) { // sender
         Delay (5000000);
@@ -40,8 +41,8 @@ int main()
         cout << "2" << endl;
         //for(int i = 0; i < 3; i++) {
             cout << " ??? ";
-            while (true);
-            //nic->receive(&src, &prot, data, nic->mtu());
+            //while (true);
+            nic->receive(&src, &prot, data, nic->mtu());
             cout << "  Data: " << data;
         //}
     }
