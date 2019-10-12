@@ -405,34 +405,41 @@ protected:
     static Observed _observed; // shared by all IP instances, so the default for binding on a port is for all IPs
 };
 
+
+
+
+
+
+
+
 class SOS: private NIC<Ethernet>::Observer {
 public:
     typedef unsigned char Protocol;
     typedef Ethernet::Buffer Buffer;
     typedef Data_Observer<Buffer, Protocol> Observer;
     typedef Data_Observed<Buffer, Protocol> Observed;
+    typedef NIC<Ethernet>::Address NIC_Address;
 
-    static SOS* ponteiro;
-
-    SOS(unsigned int unit);
+    SOS();
     ~SOS();
 
     void send(char data[]);
     void rcv(char data[]);
     void statistics();
 
-    static void init(unsigned int unit);
-
     static void attach(Observer * obs, const Protocol & prot) { _observed.attach(obs, prot); }
     static void detach(Observer * obs, const Protocol & prot) { _observed.detach(obs, prot); }
     
+    static NIC_Address mac() { return SOS::nic->address(); }
+
 private:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
 
 protected:
     static Observed _observed;
-    static NIC<Ethernet> * nic; // TSTP static e IP nao
+    static NIC<Ethernet> * nic;
     Semaphore* _semaphore;
+    unsigned short protocol;
 
 };
 

@@ -207,7 +207,7 @@ public:
 
         using namespace EPOS;
         OStream cout;
-        cout << "Data_Observed::attach " << o << " | " << c << endl;
+        cout << "Data_Observed::attach " << endl;
 
         o->_link = Element(o, c);
         _observers.insert(&o->_link);
@@ -224,16 +224,13 @@ public:
 
         using namespace EPOS;
         OStream cout;
-        cout << "Data_Observed::notify " << c << " | " << d << endl;
+        cout << "Data_Observed::notify " << endl;
 
         db<Observeds>(TRC) << "Data_Observed::notify(this=" << this << ",cond=" << c << ")" << endl;
 
         for(Element * e = _observers.head(); e; e = e->next()) {
-            cout << "for " << endl;
             if(e->rank() == c) {
                 db<Observeds>(INF) << "Data_Observed::notify(this=" << this << ",obs=" << e->object() << ")" << endl;
-                
-                cout << "Data_Observed::notify" << endl;
 
                 e->object()->update(this, c, d);
                 notified = true;

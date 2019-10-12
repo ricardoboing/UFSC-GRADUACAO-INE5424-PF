@@ -46,28 +46,6 @@ void IP::init(unsigned int unit)
     using namespace EPOS;
     OStream cout;
     cout << "IP::init" << endl;
-
-    SOS::init(1);
-}
-
-SOS::SOS(unsigned int unit) {
-    NIC<Ethernet> * nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
-    nic->attach(this, 0x8888);
-    
-    SOS::nic = nic;
-    _semaphore = new Semaphore(0);
-}
-SOS::~SOS() {
-    nic->detach(this, 0x8888);
-}
-
-void SOS::init(unsigned int unit)
-{
-    using namespace EPOS;
-    OStream cout;
-    cout << "SOS::init" << endl;
-
-    SOS::ponteiro = new (SYSTEM) SOS(1);
 }
 
 __END_SYS

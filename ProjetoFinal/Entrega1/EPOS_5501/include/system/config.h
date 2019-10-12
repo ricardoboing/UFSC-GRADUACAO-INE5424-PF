@@ -98,6 +98,7 @@ namespace EPOS {
 #define __AES_H                 __HEADER_MACH(aes)
 #define __ipv4__
 #define __tstp__
+#define __sos__
 
 #define __KEYPAD_H              __HEADER_TRAN(keypad)
 
@@ -148,6 +149,7 @@ namespace EPOS {
 #define __NIC_H                 __HEADER_MACH(nic)
 #define __AES_H                 __HEADER_MACH(aes)
 #define __ipv4__
+#define __sos__
 #endif
 
 #ifdef __mmod_realview_pbx__
@@ -170,6 +172,7 @@ namespace EPOS {
 #define __NIC_H                 __HEADER_MACH(nic)
 #define __AES_H                 __HEADER_MACH(aes)
 #define __ipv4__
+#define __sos__
 #endif
 
 //============================================================================
