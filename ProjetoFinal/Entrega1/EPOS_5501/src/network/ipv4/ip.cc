@@ -18,7 +18,6 @@ IP::Router IP::_router;
 IP::Reassembling IP::_reassembling;
 IP::Observed IP::_observed;
 
-SOS* SOS::ponteiro;
 NIC<Ethernet>* SOS::nic;
 
 // Methods
@@ -188,11 +187,37 @@ unsigned short IP::checksum(const void * data, unsigned int size)
     return ~sum;
 }
 
+
+
+
+
+
+
+
+SOS::SOS(int prot) {
+    using namespace EPOS;
+    OStream cout;
+    cout << "SOS::SOS" << endl;
+
+    protocol = prot;
+
+    SOS::nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
+    SOS::nic->attach(this, protocol);
+    
+    _semaphore = new Semaphore(0);
+}
+SOS::~SOS() {
+    using namespace EPOS;
+    OStream cout;
+    cout << "SOS::~SOS" << endl;
+
+    SOS::nic->detach(this, protocol);
+}
 void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot, Buffer * buf)
 {
     using namespace EPOS;
     OStream cout;
-    cout << "update aqui" << endl;
+    cout << "SOS::update | _semaphore->v" << endl;
 
     _semaphore->v();
 }
@@ -200,29 +225,29 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
 void SOS::send(char data[]) {
     using namespace EPOS;
     OStream cout;
-    cout << "SOS::SEND" << endl;
+    cout << "SOS::send" << endl;
 
-    SOS::nic->send(nic->broadcast(), 0x8888, data, nic->mtu());
+    SOS::nic->send(nic->broadcast(), protocol, data, nic->mtu());
 }
 void SOS::rcv(char data[]) {
     using namespace EPOS;
     OStream cout;
-    cout << "SOS::RCV" << endl;
+    cout << "SOS::rcv | entrou _semaphore->p" << endl;
 
     _semaphore->p();
 
-    cout << " desbloqueou " << endl;
+    cout << "SOS::rcv | saiu _semaphore->p" << endl;
+
     NIC<Ethernet>::Address src;
     NIC<Ethernet>::Protocol prot;
 
-    cout << " receive begin " << endl;
     SOS::nic->receive(&src, &prot, data, 1000);
-    cout << " receive end " << endl;
 }
 void SOS::statistics() {
     using namespace EPOS;
     OStream cout;
     NIC<Ethernet>::Statistics stat = SOS::nic->statistics();
+
     cout << "Statistics\n"
          << "Tx Packets: " << stat.tx_packets << "\n"
          << "Tx Bytes:   " << stat.tx_bytes << "\n"

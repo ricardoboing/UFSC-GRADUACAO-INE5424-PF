@@ -50,13 +50,7 @@ public:
 
     void reset() { _dev->reset(); }
 
-    void attach(Observer * obs, const Protocol & prot) { 
-        using namespace EPOS;
-        OStream cout;
-        cout << "Cortex NIC::attach" << endl;
-
-        _dev->Ethernet::Observed::attach(obs, prot);
-    }
+    void attach(Observer * obs, const Protocol & prot) { _dev->Ethernet::Observed::attach(obs, prot); }
     void detach(Observer * obs, const Protocol & prot) { _dev->Ethernet::Observed::detach(obs, prot); }
     void notify(const Protocol & prot, Buffer * buf) { _dev->Ethernet::Observed::notify(prot, buf); }
 

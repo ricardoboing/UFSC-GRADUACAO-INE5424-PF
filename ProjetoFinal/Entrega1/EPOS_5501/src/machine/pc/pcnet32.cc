@@ -65,6 +65,8 @@ int PCNet32::receive(Address * src, Protocol * prot, void * data, unsigned int s
     using namespace EPOS;
     OStream cout;
     
+    cout << "PCNet32::receive" << endl;
+
     // Wait for a received frame and seize it
     unsigned int i = _rx_cur;
     for(bool locked = false; !locked; ) {
@@ -329,9 +331,10 @@ void PCNet32::handle_int()
                                      << ",d=" << frame->data<void>() << ",s=" << buf->size() << ")" << endl;
 
                     db<PCNet32>(INF) << "PCNet32::handle_int:desc[" << i << "]=" << desc << " => " << *desc << endl;
+                    
                     using namespace EPOS;
                     OStream cout;
-                    cout << "PCNet32::handle_int" << endl;
+
                     IC::disable(IC::irq2int(_irq));
                     buf->unlock();
                     if(!notify(frame->header()->prot(), buf)) { // No one was waiting for this frame, so let it free for receive()
@@ -378,7 +381,7 @@ void PCNet32::int_handler(const IC::Interrupt_Id & interrupt)
 {
     using namespace EPOS;
     OStream cout;
-    cout << "interrupt" << endl;
+    cout << "PCNet32::int_handler" << endl;
 
     PCNet32 * dev = get_by_interrupt(interrupt);
 

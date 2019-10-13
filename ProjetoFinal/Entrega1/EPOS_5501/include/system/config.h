@@ -7,15 +7,15 @@
 // ARCHITECTURE, MACHINE, AND APPLICATION SELECTION
 // This section is generated automatically from makedefs by $EPOS/etc/makefile
 //============================================================================
-#define SMOD library
-#define ARCH ia32
-#define MACH pc
-#define MMOD legacy_pc
-#define APPL nic_test
-#define __mode_library__
-#define __arch_ia32__
-#define __mach_pc__
-#define __mmod_legacy_pc__
+#define SMOD xxx
+#define ARCH xxx
+#define MACH xxx
+#define MMOD xxx
+#define APPL xxx
+#define __mode_xxx__
+#define __arch_xxx__
+#define __mach_xxx__
+#define __mmod_xxx__
 
 //============================================================================
 // NAMESPACES AND DEFINITIONS
@@ -98,6 +98,7 @@ namespace EPOS {
 #define __AES_H                 __HEADER_MACH(aes)
 #define __ipv4__
 #define __tstp__
+#define __sos__
 
 #define __KEYPAD_H              __HEADER_TRAN(keypad)
 
@@ -148,6 +149,7 @@ namespace EPOS {
 #define __NIC_H                 __HEADER_MACH(nic)
 #define __AES_H                 __HEADER_MACH(aes)
 #define __ipv4__
+#define __sos__
 #endif
 
 #ifdef __mmod_realview_pbx__
@@ -170,6 +172,7 @@ namespace EPOS {
 #define __NIC_H                 __HEADER_MACH(nic)
 #define __AES_H                 __HEADER_MACH(aes)
 #define __ipv4__
+#define __sos__
 #endif
 
 //============================================================================

@@ -1,44 +1,79 @@
 // EPOS NIC Test Programs
 
-#include <machine/nic.h>
 #include <time.h>
 #include <communicator.h>
 
 using namespace EPOS;
 OStream cout;
-int teste1(NIC<Ethernet>::Address self, SOS* sos){
-    
+
+
+int teste_conexao(){
+    SOS* sos = new SOS(0x8888);
     char data[1000];
-    if(self[5] % 2) { // sender
+    if(SOS::mac()[5] % 2) { // sender
         Delay (5000000);
-        cout << "sender" << endl;
-        //for(int i = 0; i < 10; i++) {
+        cout << "SENDER" << endl;
             memset(data, '1', 1000);
             data[1000 - 1] = '\n';
             
             sos->send(data);
-        //}
     } else { // receiver
-        cout << "receiver" << endl;
+        cout << "RECIEVER" << endl;
         sos->rcv(data);
-        cout << " data " << data << endl;
+        cout << "Data: " << data << endl;
     }
+    delete sos;
     return 0;
+
 }
 
 
-int main()
-{
-    cout << "NIC Test" << endl;
-    NIC<Ethernet> * nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
-    NIC<Ethernet>::Address self = nic->address();
+void teste_protocolo() {
+    cout << "NIC Test protocol" << endl;
+    char data[1000];
 
-    SOS* sos = SOS::ponteiro;
+    SOS* sos = new SOS(0x8888);
 
-    teste1(self, sos);
+    if(SOS::mac()[5] % 2) {
+        Delay (5000000);
+        cout << "QEMU SENDER 0x8888" << endl;
+        
+        memset(data, '2', 1000);
+            data[1000 - 1] = '\n';
+            
+            sos->send(data);
+        
+    } else {
+        cout << "QEMU RECEIVER 0x8888"  << endl;
+        sos->rcv(data);
+        cout << "Data: " << data << endl;
+    }
 
-    sos->statistics();
+    sos = new SOS(0x888);
 
+    if(SOS::mac()[5] % 2) {
+        Delay (5000000);
+        cout << "QEMU SENDER 0x888" << endl;
+        
+        memset(data, '3', 1000);
+            data[1000 - 1] = '\n';
+            
+            sos->send(data);
+        
+    } else {
+        cout << "QEMU RECEIVER 0x888"  << endl;
+        sos->rcv(data);
+        cout << "Data: " << data << endl;
+    }
     delete sos;
+}
+
+
+
+
+int main()
+{   
+    teste_conexao();
+    teste_protocolo();
     Delay (500000000);
 }
