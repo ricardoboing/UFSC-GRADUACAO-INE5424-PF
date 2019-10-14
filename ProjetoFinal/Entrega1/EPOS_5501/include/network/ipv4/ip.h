@@ -430,7 +430,7 @@ public:
 
     void send(char data[]);
     void rcv(char data[]);
-    void statistics();
+    static void statistics();
 
     static void attach(Observer * obs, const Protocol & prot) { _observed.attach(obs, prot); }
     static void detach(Observer * obs, const Protocol & prot) { _observed.detach(obs, prot); }

@@ -15,7 +15,7 @@ unsigned int fibbonacci(unsigned int n) { // Sugerido pelo professor
     }
 }
 int teste_dma_cpu_bound() {
-    fibbonacci(30);
+    fibbonacci(37);
 }
 int teste_dma_nic() {
     char data[1000];
@@ -46,7 +46,7 @@ void teste_dma_nic_cpu_bound() {
 }
 
 void teste_dma() {
-    unsigned int time_nic, time_cpu_bound, time_nic_cpu_bound;
+    unsigned long time_nic, time_cpu_bound, time_nic_cpu_bound;
     Chronometer cronometro;
     
     // NIC
