@@ -9,10 +9,6 @@ __BEGIN_SYS
 
 PCNet32::PCNet32(unsigned int unit, IO_Port io_port, IO_Irq irq, DMA_Buffer * dma_buf)
 {
-    using namespace EPOS;
-    OStream cout;
-    cout << "PCNet32::PCNet32" << endl;
-
     db<PCNet32>(TRC) << "PCNet32(unit=" << unit << ",io=" << io_port << ",irq=" << irq << ",dma=" << dma_buf << ")" << endl;
 
     _unit = unit;
@@ -124,5 +120,23 @@ void PCNet32::init(unsigned int unit)
     // Enable interrupts for device
     IC::enable(_devices[unit].interrupt);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 __END_SYS

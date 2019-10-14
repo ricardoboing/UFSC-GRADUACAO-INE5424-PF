@@ -63,9 +63,6 @@ private:
 inline void Observed::attach(Observer * o)
 {
     db<Observers>(TRC) << "Observed::attach(obs=" << o << ")" << endl;
-    using namespace EPOS;
-    OStream cout;
-    cout << "Observed::attach" << endl;
     _observers.insert(&o->_link);
 }
 
@@ -118,9 +115,6 @@ public:
 
     virtual void attach(Conditional_Observer<C> * o, const C & c) {
         db<Observers>(TRC) << "Conditionally_Observed::attach(o=" << o << ",c=" << c << ")" << endl;
-        using namespace EPOS;
-        OStream cout;
-        cout << "Observer.h do utility" << endl;
         o->_link = Element(o, c);
         _observers.insert(&o->_link);
     }
@@ -205,9 +199,9 @@ public:
     virtual void attach(Data_Observer<D, C> * o, const C & c) {
         db<Observeds>(TRC) << "Data_Observed::attach(obs=" << o << ",cond=" << c << ")" << endl;
 
-        using namespace EPOS;
-        OStream cout;
-        cout << "Data_Observed::attach " << endl;
+        //using namespace EPOS;
+        //OStream cout;
+        //cout << "Data_Observed::attach " << endl;
 
         o->_link = Element(o, c);
         _observers.insert(&o->_link);
@@ -222,9 +216,9 @@ public:
     virtual bool notify(const C & c, D * d) {
         bool notified = false;
 
-        using namespace EPOS;
-        OStream cout;
-        cout << "Data_Observed::notify " << endl;
+        //using namespace EPOS;
+        //OStream cout;
+        //cout << "Data_Observed::notify " << endl;
 
         db<Observeds>(TRC) << "Data_Observed::notify(this=" << this << ",cond=" << c << ")" << endl;
 

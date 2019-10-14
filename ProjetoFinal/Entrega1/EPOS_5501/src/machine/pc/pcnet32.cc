@@ -70,7 +70,7 @@ int PCNet32::receive(Address * src, Protocol * prot, void * data, unsigned int s
     // Wait for a received frame and seize it
     unsigned int i = _rx_cur;
     for(bool locked = false; !locked; ) {
-        for(; _rx_ring[i].status & Rx_Desc::OWN; ++i %= RX_BUFS) cout << "AQUI???" << endl;
+        for(; _rx_ring[i].status & Rx_Desc::OWN; ++i %= RX_BUFS);// cout << "AQUI???" << endl;
         //cout << "nesse daqui" << endl;
         locked = _rx_buffer[i]->lock();
     }
@@ -392,5 +392,33 @@ void PCNet32::int_handler(const IC::Interrupt_Id & interrupt)
     else
         dev->handle_int();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 __END_SYS

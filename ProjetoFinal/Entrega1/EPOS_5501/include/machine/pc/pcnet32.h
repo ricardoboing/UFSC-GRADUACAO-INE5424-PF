@@ -494,6 +494,60 @@ inline PCNet32::Timer::Time_Stamp PCNet32::Timer::us2count(const PCNet32::Timer:
 inline PCNet32::Timer::Microsecond PCNet32::Timer::count2us(const PCNet32::Timer::Time_Stamp & ts) { return Convert::count2us<Hertz, Time_Stamp, Microsecond>(TSC::frequency(), ts); }
 //    static Time_Stamp sfd() { return 0; }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class i82557a_driver {
+protected:
+    typedef CPU::Reg8 Reg8;
+    typedef CPU::Reg16 Reg16;
+    typedef CPU::Reg32 Reg32;
+    typedef CPU::Log_Addr Log_Addr;
+    typedef CPU::Phy_Addr Phy_Addr;
+    typedef CPU::IO_Port IO_Port;
+    typedef CPU::IO_Irq IO_Irq;
+    typedef MMU::DMA_Buffer DMA_Buffer;
+    typedef Ethernet::Address MAC_Address;
+};
+
+// i82557a PC Ethernet NIC
+class i82557a: public NIC<Ethernet>, private i82557a_driver {
+protected:
+    i82557a(unsigned int unit, IO_Port io_port, IO_Irq irq, DMA_Buffer * dma);
+
+public:
+    ~i82557a();
+
+    int send(const Address & dst, const Protocol & prot, const void * data, unsigned int size);
+    int receive(Address * src, Protocol * prot, void * data, unsigned int size);
+
+
+private:
+    static void init();
+
+};
+
+
+
+
+
+
+
 __END_SYS
 
 #endif

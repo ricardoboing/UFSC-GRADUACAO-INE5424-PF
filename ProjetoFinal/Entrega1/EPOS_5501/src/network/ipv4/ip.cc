@@ -194,7 +194,7 @@ unsigned short IP::checksum(const void * data, unsigned int size)
 
 
 
-SOS::SOS(int prot) {
+SOS::SOS(unsigned short prot) {
     using namespace EPOS;
     OStream cout;
     cout << "SOS::SOS" << endl;
@@ -212,6 +212,7 @@ SOS::~SOS() {
     cout << "SOS::~SOS" << endl;
 
     SOS::nic->detach(this, protocol);
+    delete _semaphore;
 }
 void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot, Buffer * buf)
 {
@@ -240,7 +241,6 @@ void SOS::rcv(char data[]) {
 
     NIC<Ethernet>::Address src;
     NIC<Ethernet>::Protocol prot;
-
     SOS::nic->receive(&src, &prot, data, 1000);
 }
 void SOS::statistics() {

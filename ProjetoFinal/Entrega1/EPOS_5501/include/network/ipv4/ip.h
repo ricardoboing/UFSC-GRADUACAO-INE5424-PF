@@ -420,7 +420,12 @@ public:
     typedef Data_Observed<Buffer, Protocol> Observed;
     typedef NIC<Ethernet>::Address NIC_Address;
 
-    SOS(int prot);
+    enum {
+        PROTOCOL_SOS = 0x88,
+        PROTOCOL_SOS_1 = 0x89
+    };
+
+    SOS(unsigned short prot);
     ~SOS();
 
     void send(char data[]);
@@ -430,9 +435,9 @@ public:
     static void attach(Observer * obs, const Protocol & prot) { _observed.attach(obs, prot); }
     static void detach(Observer * obs, const Protocol & prot) { _observed.detach(obs, prot); }
     
-    static NIC_Address mac() { return SOS::nic->address(); }
+    static NIC_Address nic_address() { return SOS::nic->address(); }
 
-private:
+protected:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
 
 protected:

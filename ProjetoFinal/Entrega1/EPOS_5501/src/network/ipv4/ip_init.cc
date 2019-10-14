@@ -42,10 +42,6 @@ void IP::init(unsigned int unit)
     db<Init, IP>(TRC) << "IP::init(u=" << unit << ")" << endl;
 
     _networks[unit] = new (SYSTEM) IP(unit);
-
-    using namespace EPOS;
-    OStream cout;
-    cout << "IP::init" << endl;
 }
 
 __END_SYS
