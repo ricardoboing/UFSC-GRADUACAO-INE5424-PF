@@ -432,6 +432,64 @@ public:
     void rcv(char data[]);
     static void statistics();
 
+    class Address
+    {
+
+    public:
+        Address() {}
+        Address(const NIC_Address addr, const unsigned int port): _addr(addr), _port(port) {}
+        
+        const NIC_Address & addr() const { return _addr; }
+        const unsigned int & port() const { return _port; }
+
+    private:
+        NIC_Address  _addr;
+        unsigned int  _port;
+    };
+
+    // class Header
+    // {
+    // public:
+    //     Header() {}
+    //     Header(const Port & from, const Port & to, unsigned int size):
+    //         _from(htons(from)), _to(htons(to)), _length(htons((size > sizeof(Data) ? sizeof(Data) : size) + sizeof(Header))) {}
+
+    //     Port from() const { return ntohs(_from); }
+    //     Port to() const { return ntohs(_to); }
+
+    //     unsigned short length() const { return ntohs(_length); }
+
+    //     unsigned short checksum() const { return ntohs(_checksum); }
+        
+    //     friend OStream & operator<<(OStream & db, const Header & h) {
+    //         db << "{sp=" << ntohs(h._from) << ",dp=" << ntohs(h._to)
+    //            << ",len=" << ntohs(h._length) << ",chk=" << hex << ntohs(h._checksum) << dec << "}";
+    //         return db;
+    //     }
+
+    // protected:
+    //     Port _from;
+    //     Port _to;
+    //     unsigned short _length;   // Length of datagram (header + data) in bytes
+    //     unsigned short _checksum; // Pseudo header checksum (see RFC)
+    // } __attribute__((packed));
+
+
+    // class Message: public Header
+    // {
+    // public:
+    //     Message() {}
+
+    //     Header * header() { return this; }
+
+    //     template<typename T>
+    //     T * data() { return reinterpret_cast<T *>(&_data); }
+        
+
+    // private:
+    //     Data _data;
+    // } __attribute__((packed));
+
     static void attach(Observer * obs, const Protocol & prot) { _observed.attach(obs, prot); }
     static void detach(Observer * obs, const Protocol & prot) { _observed.detach(obs, prot); }
     
