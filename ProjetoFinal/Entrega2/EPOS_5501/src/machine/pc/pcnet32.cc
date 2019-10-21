@@ -53,6 +53,7 @@ int PCNet32::send(const Address & dst, const Protocol & prot, const void * data,
     db<PCNet32>(INF) << "PCNet32::send:desc[" << i << "]=" << desc << " => " << *desc << endl;
 
     buf->unlock();
+    //free(buf);
 
     return size;
 }
@@ -61,19 +62,9 @@ int PCNet32::send(const Address & dst, const Protocol & prot, const void * data,
 int PCNet32::receive(Address * src, Protocol * prot, void * data, unsigned int size)
 {
     db<PCNet32>(TRC) << "PCNet32::receive(s=" << *src << ",p=" << hex << *prot << dec << ",d=" << data << ",s=" << size << ") => " << endl;
-
-    using namespace EPOS;
-    OStream cout;
     
-    cout << "PCNet32::receive" << endl;
-
-    // Wait for a received frame and seize it
     unsigned int i = _rx_cur;
-    for(bool locked = false; !locked; ) {
-        for(; _rx_ring[i].status & Rx_Desc::OWN; ++i %= RX_BUFS);// cout << "AQUI???" << endl;
-        //cout << "nesse daqui" << endl;
-        locked = _rx_buffer[i]->lock();
-    }
+    
     _rx_cur = (i + 1) % RX_BUFS;
     Buffer * buf = _rx_buffer[i];
     Rx_Desc * desc = &_rx_ring[i];
@@ -100,6 +91,7 @@ int PCNet32::receive(Address * src, Protocol * prot, void * data, unsigned int s
     int tmp = buf->size();
 
     buf->unlock();
+    //free(buf);
 
     return tmp;
 }
@@ -336,7 +328,7 @@ void PCNet32::handle_int()
                     OStream cout;
 
                     IC::disable(IC::irq2int(_irq));
-                    buf->unlock();
+                    
                     if(!notify(frame->header()->prot(), buf)) { // No one was waiting for this frame, so let it free for receive()
                         free(buf);
                         cout << "PCNet32::handle_int free" << endl;
@@ -379,10 +371,6 @@ void PCNet32::handle_int()
 
 void PCNet32::int_handler(const IC::Interrupt_Id & interrupt)
 {
-    using namespace EPOS;
-    OStream cout;
-    cout << "PCNet32::int_handler" << endl;
-
     PCNet32 * dev = get_by_interrupt(interrupt);
 
     db<PCNet32>(TRC) << "PCNet32::int_handler(int=" << interrupt << ",dev=" << dev << ")" << endl;

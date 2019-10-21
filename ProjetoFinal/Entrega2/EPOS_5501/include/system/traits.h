@@ -218,7 +218,13 @@ template<> struct Traits<Network>: public Traits<void>
 
     typedef LIST<IP> NETWORKS;
 };
+template<> struct Traits<SOS>: public Traits<void>
+{
+    static const bool enabled = (Traits<Build>::NODES > 1);
 
+    static const unsigned int RETRIES = 20;
+    static const unsigned int TIMEOUT = 5; // s
+};
 template<> struct Traits<TSTP>: public Traits<Network>
 {
     typedef Ethernet NIC_Family;

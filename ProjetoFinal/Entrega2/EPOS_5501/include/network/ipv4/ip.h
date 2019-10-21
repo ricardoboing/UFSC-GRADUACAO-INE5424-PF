@@ -416,35 +416,48 @@ class SOS: private NIC<Ethernet>::Observer {
 public:
     typedef unsigned char Protocol;
     typedef Ethernet::Buffer Buffer;
-    typedef Data_Observer<Buffer, Protocol> Observer;
-    typedef Data_Observed<Buffer, Protocol> Observed;
     typedef NIC<Ethernet>::Address NIC_Address;
 
     enum {
-        PROTOCOL_SOS = 0x88,
-        PROTOCOL_SOS_1 = 0x89
+        DEFAULT = 0,
+        SEND = 1,
+        RCV = 2
     };
 
-    SOS(unsigned short prot);
+    SOS(unsigned int port);
     ~SOS();
 
-    void send(char data[]);
-    void rcv(char data[]);
+    int send(char data[]);
+    int receive(char data[], unsigned int size);
+    
     static void statistics();
 
-    static void attach(Observer * obs, const Protocol & prot) { _observed.attach(obs, prot); }
-    static void detach(Observer * obs, const Protocol & prot) { _observed.detach(obs, prot); }
-    
+    void wait_timeout(char data[]);
+    void wait_ack(char data[]);
+
+    static const NIC_Address broadcast() { return SOS::nic->broadcast(); }
     static NIC_Address nic_address() { return SOS::nic->address(); }
 
 protected:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
+    void update_receive();
+    void update_send();
+
+    void nic_send(char data[]);
+    void nic_receive(char data[], unsigned int size);
 
 protected:
-    static Observed _observed;
     static NIC<Ethernet> * nic;
-    Semaphore* _semaphore;
+    
+    Mutex* mutex;
+    char data[1];
+
+    bool msg;
+    bool ackk;
+
     unsigned short protocol;
+    unsigned int port;
+    unsigned int operacao;
 
 };
 

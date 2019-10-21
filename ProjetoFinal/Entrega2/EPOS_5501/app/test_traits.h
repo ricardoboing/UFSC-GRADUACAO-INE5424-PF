@@ -228,7 +228,13 @@ template<> struct Traits<TSTP>: public Traits<Network>
     static const unsigned int KEY_SIZE = 16;
     static const unsigned int RADIO_RANGE = 8000; // Approximated radio range in centimeters
 };
+template<> struct Traits<SOS>: public Traits<void>
+{
+    static const bool enabled = (Traits<Build>::NODES > 1);
 
+    static const unsigned int RETRIES = 3;
+    static const unsigned int TIMEOUT = 10; // s
+};
 template<> struct Traits<IP>: public Traits<Network>
 {
     static const bool enabled = NETWORKS::Count<IP>::Result;
@@ -262,6 +268,7 @@ template<> struct Traits<UDP>: public Traits<Network>
 {
     static const bool checksum = true;
 };
+
 
 template<> struct Traits<TCP>: public Traits<Network>
 {

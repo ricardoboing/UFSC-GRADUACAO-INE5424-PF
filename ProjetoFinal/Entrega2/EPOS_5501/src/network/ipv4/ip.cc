@@ -194,56 +194,188 @@ unsigned short IP::checksum(const void * data, unsigned int size)
 
 
 
-SOS::SOS(unsigned short prot) {
+
+
+
+
+
+
+int SOS::send(char data[])
+{
     using namespace EPOS;
     OStream cout;
-    cout << "SOS::SOS" << endl;
 
-    protocol = prot;
+    mutex->lock();
+    operacao = SEND;
+    ackk = false;
+    mutex->unlock();
 
-    SOS::nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
-    SOS::nic->attach(this, protocol);
+    nic_send(data);
+
+    int retorno = 0;
+
+    for (unsigned int c = 0; c < Traits<SOS>::RETRIES; c++) {
+        Delay(Traits<SOS>::TIMEOUT*100000);
+
+        mutex->lock();
+        if (msg) {
+            if (ackk) {
+                cout << "ACK" << endl;
+                retorno = 1;
+                msg = false;
+                mutex->unlock();
+                break;
+            }
+
+            msg = false;
+            cout << "NAO ACK" << endl;
+        }
+
+        data[c]++;
+        nic_send(data);
+        mutex->unlock();
+        cout << "TIMEOUT " << c << endl;
+    }
     
-    _semaphore = new Semaphore(0);
+    mutex->lock();
+    operacao = DEFAULT;
+    mutex->unlock();
+
+    return retorno;
 }
-SOS::~SOS() {
+int SOS::receive(char dado[], unsigned int size)
+{
     using namespace EPOS;
     OStream cout;
-    cout << "SOS::~SOS" << endl;
 
-    SOS::nic->detach(this, protocol);
-    delete _semaphore;
+    mutex->lock();
+    operacao = RCV;
+    msg = false;
+    mutex->unlock();
+
+    int retorno = 0;
+
+    for (unsigned int c = 0; c < Traits<SOS>::RETRIES; c++) {
+        Delay(Traits<SOS>::TIMEOUT*100000);
+
+        mutex->lock();
+        if (msg) {
+            cout << "MSG" << endl;
+            retorno = 1;
+            mutex->unlock();
+            dado[0] = data[0];
+            break;
+        }
+
+        mutex->unlock();
+        cout << "TIMEOUT " << c << endl;
+    }
+    
+    mutex->lock();
+    operacao = DEFAULT;
+    mutex->unlock();
+
+    return retorno;
 }
 void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot, Buffer * buf)
 {
     using namespace EPOS;
     OStream cout;
-    cout << "SOS::update | _semaphore->v" << endl;
+    cout << "update" << endl;
 
-    _semaphore->v();
+    mutex->lock();
+    switch(operacao) {
+        case SEND:
+            cout << "update SEND" << endl;
+            update_send();
+            mutex->unlock();
+            break;
+        case RCV:
+            cout << "update RCV" << endl;
+            update_receive();
+            mutex->unlock();
+            break;
+        default:
+            cout << "update DEFAULT" << endl;
+            nic->free(buf);
+            mutex->unlock();
+            break;
+    }
 }
-
-void SOS::send(char data[]) {
-    using namespace EPOS;
-    OStream cout;
-    cout << "SOS::send" << endl;
-
-    SOS::nic->send(nic->broadcast(), protocol, data, nic->mtu());
+void SOS::update_receive() {
+    msg = true;
+    nic_receive(data, 1);
 }
-void SOS::rcv(char data[]) {
-    using namespace EPOS;
-    OStream cout;
-    cout << "SOS::rcv | entrou _semaphore->p" << endl;
+void SOS::update_send() {
+    msg = true;
+    nic_receive(data, 1);
+    
+    if (data[0] == '3') {
+        ackk = true;
+    }
+}
+/*
+void SOS::receive(char data[], unsigned int size)
+{   
+    mutex->lock();
+    operacao = RCV;
+    mutex->unlock();
 
-    _semaphore->p();
+    semaphoreReceive->p();
 
-    cout << "SOS::rcv | saiu _semaphore->p" << endl;
+    nic_receive(data, size);
 
+    char ack[1];
+    
+    
+    //Delay(600000);
+    memset(ack, '0', 1);
+    nic_send(ack);
+
+    memset(ack, '1', 1);
+    nic_send(ack);
+    
+    memset(ack, '2', 1);
+    nic_send(ack);
+    
+    //memset(ack, '3', 1);
+    //nic_send(ack);
+
+
+
+
+    mutex->lock();
+    operacao = DEFAULT;
+    mutex->unlock();
+}*/
+SOS::SOS(unsigned int port)
+{
+    port = port;
+    protocol = 0x8888;
+    operacao = DEFAULT;
+
+    mutex = new Mutex();
+
+    SOS::nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
+    SOS::nic->attach(this, protocol);
+}
+SOS::~SOS()
+{
+    SOS::nic->detach(this, protocol);
+    delete mutex;
+}
+void SOS::nic_send(char data[])
+{
+    SOS::nic->send(SOS::broadcast(), protocol, data, 1);
+}
+void SOS::nic_receive(char data[], unsigned int size)
+{
     NIC<Ethernet>::Address src;
     NIC<Ethernet>::Protocol prot;
-    SOS::nic->receive(&src, &prot, data, 1000);
+    SOS::nic->receive(&src, &prot, data, size);
 }
-void SOS::statistics() {
+void SOS::statistics()
+{
     using namespace EPOS;
     OStream cout;
     NIC<Ethernet>::Statistics stat = SOS::nic->statistics();
