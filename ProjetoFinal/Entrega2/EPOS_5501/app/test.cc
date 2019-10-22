@@ -6,20 +6,20 @@
 using namespace EPOS;
 OStream cout;
 
-/* TESTE DE PROTOCOLO */
 void teste_protocolo() {
     cout << "Teste de protocolo" << endl;
-    char data[1];
+    char data[SOS::mtu()];
 
     SOS* sos = new SOS(8989);
 
     if(SOS::nic_address()[5] % 2) {
         Delay (5000000);
         cout << "QEMU SEND" << endl;
-
+        
         for (int c = 0; c < 20; c++) {
-            memset(data, '0', 1);
-            if ( !sos->send(data) ) {
+            memset(data, '2', SOS::mtu());
+            
+            if ( !sos->send(data, sizeof(data)) ) {
                 cout << "ERROW" << endl;
                 break;
             }
@@ -29,15 +29,17 @@ void teste_protocolo() {
         Delay (5000000);
         cout << "QEMU RECEIVE" << endl;
         for (int i = 0; i < 20; i++) {
-            if ( !sos->receive(data, 1) ) {
+            memset(data, '0', SOS::mtu());
+            if ( !sos->receive(data, SOS::mtu()) ) {
                 cout << "ERROW" << endl;
                 break;
             }
-            cout << "Data: " << data << endl;
+            cout << "Data: " << data << " | Size: " << sizeof(data) << endl;
         }
         SOS::statistics();
     }
 }
+
 
 int main()
 {   

@@ -414,7 +414,6 @@ protected:
 
 class SOS: private NIC<Ethernet>::Observer {
 public:
-    typedef unsigned char Protocol;
     typedef Ethernet::Buffer Buffer;
     typedef NIC<Ethernet>::Address NIC_Address;
 
@@ -427,33 +426,27 @@ public:
     SOS(unsigned int port);
     ~SOS();
 
-    int send(char data[]);
+    int send(char data[], unsigned int size);
     int receive(char data[], unsigned int size);
-    
+    void timeout(char data[], unsigned int size, bool* timeout, bool *b);
+
     static void statistics();
-
-    void wait_timeout(char data[]);
-    void wait_ack(char data[]);
-
+    
     static const NIC_Address broadcast() { return SOS::nic->broadcast(); }
     static NIC_Address nic_address() { return SOS::nic->address(); }
+    static const unsigned int mtu() { return 1; }//SOS::nic->mtu(); }
 
 protected:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
-    void update_receive();
-    void update_send();
 
-    void nic_send(char data[]);
+    void nic_send(char data[], unsigned int size);
     void nic_receive(char data[], unsigned int size);
 
 protected:
     static NIC<Ethernet> * nic;
     
+    Semaphore* semaphore;
     Mutex* mutex;
-    char data[1];
-
-    bool msg;
-    bool ackk;
 
     unsigned short protocol;
     unsigned int port;
