@@ -50,8 +50,8 @@ template<> struct Traits<Build>: public Traits<void>
     static const unsigned int MACHINE = PC;
     static const unsigned int MODEL = Legacy_PC;
     static const unsigned int CPUS = 1;
-    static const unsigned int NODES = 2; // (> 1 => NETWORKING)
-    static const unsigned int EXPECTED_SIMULATION_TIME = 60; // s (0 => not simulated)
+    static const unsigned int NODES = 2;     // (> 1 => NETWORKING)
+    static const unsigned int EXPECTED_SIMULATION_TIME = 60;    // s (0 => not simulated)
 };
 
 
@@ -122,9 +122,9 @@ __BEGIN_SYS
 // API Components
 template<> struct Traits<Application>: public Traits<void>
 {
-    static const unsigned int STACK_SIZE = Traits<Machine>::STACK_SIZE;
+    static const unsigned int STACK_SIZE = 4 * Traits<Machine>::STACK_SIZE;
     static const unsigned int HEAP_SIZE = Traits<Machine>::HEAP_SIZE;
-    static const unsigned int MAX_THREADS = Traits<Machine>::MAX_THREADS;
+    static const unsigned int MAX_THREADS = 4 * Traits<Machine>::MAX_THREADS;
 };
 
 template<> struct Traits<System>: public Traits<void>
@@ -156,7 +156,7 @@ template<> struct Traits<Thread>: public Traits<void>
     static const bool simulate_capacity = false;
     static const bool trace_idle = hysterically_debugged;
 
-    typedef Scheduling_Criteria::Priority Criterion;
+    typedef Scheduling_Criteria::RR Criterion;
     static const unsigned int QUANTUM = 10000; // us
 };
 
@@ -218,13 +218,7 @@ template<> struct Traits<Network>: public Traits<void>
 
     typedef LIST<IP> NETWORKS;
 };
-template<> struct Traits<SOS>: public Traits<void>
-{
-    static const bool enabled = (Traits<Build>::NODES > 1);
 
-    static const unsigned int RETRIES = 20;
-    static const unsigned int TIMEOUT = 5; // s
-};
 template<> struct Traits<TSTP>: public Traits<Network>
 {
     typedef Ethernet NIC_Family;
@@ -234,7 +228,13 @@ template<> struct Traits<TSTP>: public Traits<Network>
     static const unsigned int KEY_SIZE = 16;
     static const unsigned int RADIO_RANGE = 8000; // Approximated radio range in centimeters
 };
+template<> struct Traits<SOS>: public Traits<void>
+{
+    static const bool enabled = (Traits<Build>::NODES > 1);
 
+    static const unsigned int RETRIES = 3;
+    static const unsigned int TIMEOUT = 10; // s
+};
 template<> struct Traits<IP>: public Traits<Network>
 {
     static const bool enabled = NETWORKS::Count<IP>::Result;
@@ -268,6 +268,7 @@ template<> struct Traits<UDP>: public Traits<Network>
 {
     static const bool checksum = true;
 };
+
 
 template<> struct Traits<TCP>: public Traits<Network>
 {

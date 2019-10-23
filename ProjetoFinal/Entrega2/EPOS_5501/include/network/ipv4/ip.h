@@ -423,33 +423,34 @@ public:
         RCV = 2
     };
 
-    SOS(unsigned int port);
+    SOS(unsigned short port);
     ~SOS();
 
-    int send(char data[], unsigned int size);
+    int send(char data[],unsigned int size, char addr_dest[], unsigned short port_dest);
     int receive(char data[], unsigned int size);
-    void timeout(char data[], unsigned int size, bool* timeout, bool *b);
+    void timeout(unsigned char data[], unsigned int size, bool* timeout, bool *b);
 
     static void statistics();
     
     static const NIC_Address broadcast() { return SOS::nic->broadcast(); }
     static NIC_Address nic_address() { return SOS::nic->address(); }
-    static const unsigned int mtu() { return 1; }//SOS::nic->mtu(); }
+    static const unsigned int mtu() { return  100;} //SOS::nic->mtu() - header ; }
 
 protected:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
 
-    void nic_send(char data[], unsigned int size);
+    void nic_send(unsigned  char data[], unsigned int size);
     void nic_receive(char data[], unsigned int size);
+    void make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest);
 
 protected:
     static NIC<Ethernet> * nic;
     
     Semaphore* semaphore;
     Mutex* mutex;
-
+    unsigned int header;
     unsigned short protocol;
-    unsigned int port;
+    unsigned short port;
     unsigned int operacao;
 
 };

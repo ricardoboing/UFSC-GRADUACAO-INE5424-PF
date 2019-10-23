@@ -195,12 +195,12 @@ unsigned short IP::checksum(const void * data, unsigned int size)
 
 
 
-int func_timeout(SOS* sos, char data[], unsigned int size, bool* timeout, bool *msg)
+int func_timeout(SOS* sos, unsigned char data[], unsigned int size, bool* timeout, bool *msg)
 {
     sos->timeout(data, size, timeout, msg);
     return 0;
 }
-void SOS::timeout(char data[], unsigned int size, bool* timeout, bool *msg)
+void SOS::timeout(unsigned char data[], unsigned int size, bool* timeout, bool *msg)
 {
     OStream cout;
 
@@ -227,18 +227,30 @@ void SOS::timeout(char data[], unsigned int size, bool* timeout, bool *msg)
     mutex->unlock();
 }
 
-int SOS::send(char data[], unsigned int size)
+int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short port_dest)
 {
+    using namespace EPOS;
+    OStream cout;
+
     mutex->lock();
     operacao = SEND;
     mutex->unlock();
+    if (size > (nic->mtu() - header))
+    {
+        size = (nic->mtu() - header);
+    }
+    unsigned char data_pack[header+size];
+    make_pack(data_pack, data, size, addr_dest, port_dest);
 
-    nic_send(data, size);
+    for(int i = 0; i<20;i++)
+        cout << data_pack[i] <<endl;
+
+    nic_send(data_pack, size+header);
 
     bool *timeout = new bool();
     bool *msg = new bool();
 
-    new Thread(&func_timeout, this, data, size, timeout, msg);
+    new Thread(&func_timeout, this, data_pack, size+header, timeout, msg);
 
     while (true) {
         semaphore->p();
@@ -278,7 +290,7 @@ int SOS::receive(char data[], unsigned int size)
     bool *timeout = new bool();
     bool *msg = new bool();
 
-    new Thread(&func_timeout, this, data, size, timeout, msg);
+    //new Thread(&func_timeout, this, data, size, timeout, msg);
 
     while (true) {
         semaphore->p();
@@ -290,7 +302,7 @@ int SOS::receive(char data[], unsigned int size)
         } else {
             nic_receive(data, size);
             *msg = true;
-            char ack[1];
+            unsigned char ack[1];
             ack[1] = '3';
             nic_send(ack, 1);
             mutex->unlock();
@@ -321,11 +333,12 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
     
     mutex->unlock();
 }
-SOS::SOS(unsigned int port)
+SOS::SOS(unsigned short porta)
 {
-    port = port;
+    port = porta;
     protocol = 0x8888;
     operacao = DEFAULT;
+    header = 22;
 
     mutex = new Mutex();
     semaphore = new Semaphore(0);
@@ -339,7 +352,7 @@ SOS::~SOS()
     delete mutex;
     delete semaphore;
 }
-void SOS::nic_send(char data[], unsigned int size)
+void SOS::nic_send(unsigned char data[], unsigned int size)
 {
     SOS::nic->send(SOS::broadcast(), protocol, data, size);
 }
@@ -349,6 +362,44 @@ void SOS::nic_receive(char data[], unsigned int size)
     NIC<Ethernet>::Protocol prot;
     SOS::nic->receive(&src, &prot, data, size);
 }
+
+void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest){
+    using namespace EPOS;
+    OStream cout;
+    unsigned char port_char[sizeof(short)];
+
+    for(int i = 0; i < 6; i++)
+        pack[i] = nic_address()[i];
+
+    *(unsigned short *)port_char = port_dest;
+    //port_char = reinterpret_cast<unsigned char>(port_dest);
+    for(int i = 6; i < 8; i++)
+        pack[i] = port_char[i-6];
+
+    char * token = strchr(addr_dest, ':');
+    for(unsigned int i = 0; i < 6; i++, ++token, addr_dest = token, token = strchr(addr_dest, ':'))
+        pack[i+8] = atol(addr_dest);
+
+    *(unsigned short *)port_char = port;
+    for(int i = 14; i<16;i++)
+        pack[i] = port_char[i-14];
+
+    for(int i = 0; i<16;i++)
+        cout << " test "<< pack[i] << endl;
+
+    pack[16] = 0;///ack;
+    pack[17]  = 0;//ID;
+    unsigned char size_char[sizeof(int)];
+    *(unsigned int *)size_char = size;
+    //cout << " joj "<< size[0] << endl;
+    for(int i = 18; i<22;i++)
+        pack[i] = size_char[i-18];
+
+    for(unsigned int i = 0; i<size;i++)
+         pack[i+22] = data[i];   
+
+}
+
 void SOS::statistics()
 {
     OStream cout;
