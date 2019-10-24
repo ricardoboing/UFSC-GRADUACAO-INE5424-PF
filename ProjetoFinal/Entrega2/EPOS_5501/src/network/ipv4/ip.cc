@@ -240,9 +240,9 @@ int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short po
         size = (nic->mtu() - header);
     }
     unsigned char data_pack[header+size];
-    make_pack(data_pack, data, size, addr_dest, port_dest);
+    make_pack(data_pack, data, size, addr_dest, port_dest,0x0,0x0);
 
-    for(int i = 0; i<20;i++)
+    for(unsigned int i = 0; i<header+size;i++)
         cout << data_pack[i] <<endl;
 
     nic_send(data_pack, size+header);
@@ -261,10 +261,12 @@ int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short po
             mutex->unlock();
             break;
         } else {
-            char ack[1];
-            nic_receive(ack, 1);
+            unsigned char ack[header];
+            nic_receive(ack, header);
 
-            if (ack[0] == '3') {
+            if (ack[16]) {
+                for(int i = 0;i<100;i++)
+                cout<< "ACK" << endl;
                 *msg = true;
                 mutex->unlock();
                 break;
@@ -283,13 +285,15 @@ int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short po
 }
 int SOS::receive(char data[], unsigned int size)
 {
+    using namespace EPOS;
+    OStream cout;
     mutex->lock();
     operacao = RCV;
     mutex->unlock();
 
     bool *timeout = new bool();
     bool *msg = new bool();
-
+    //deve ser removido?
     //new Thread(&func_timeout, this, data, size, timeout, msg);
 
     while (true) {
@@ -300,13 +304,28 @@ int SOS::receive(char data[], unsigned int size)
             mutex->unlock();
             break;
         } else {
-            nic_receive(data, size);
-            *msg = true;
-            unsigned char ack[1];
-            ack[1] = '3';
-            nic_send(ack, 1);
-            mutex->unlock();
-            break;
+            unsigned char data_pack[header+size];
+            nic_receive(data_pack, header+size);
+            if(addr_check(data_pack)){
+                cout<< "addr certo" <<endl;
+                *msg = true;
+                unsigned char ack[header];
+                char addr_dest[6];
+                for(int i = 0; i < 6; i++)
+                    addr_dest[i] = data_pack[i];
+                
+                unsigned short port_dest = 0;
+                port_dest = data_pack[7] << 8 | data_pack[6];
+                cout<< data_pack[6] << "-"<< data_pack[7]<< "-"<< port_dest <<endl;
+                make_pack(ack,data, 0, addr_dest, port_dest,0x1, data_pack[17]);
+                nic_send(ack, header);
+                for(unsigned i = 0; i < size; i++){
+                    data[i] = data_pack[i+header];
+                    cout<< data[i]<< "-"<< i<<<<endl;
+                }
+                mutex->unlock();
+                break;
+            }
         }
         mutex->unlock();
     }
@@ -356,14 +375,14 @@ void SOS::nic_send(unsigned char data[], unsigned int size)
 {
     SOS::nic->send(SOS::broadcast(), protocol, data, size);
 }
-void SOS::nic_receive(char data[], unsigned int size)
+void SOS::nic_receive(unsigned char data[], unsigned int size)
 {
     NIC<Ethernet>::Address src;
     NIC<Ethernet>::Protocol prot;
     SOS::nic->receive(&src, &prot, data, size);
 }
 
-void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest){
+void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest,unsigned char ack, unsigned char id){
     using namespace EPOS;
     OStream cout;
     unsigned char port_char[sizeof(short)];
@@ -371,7 +390,7 @@ void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char ad
     for(int i = 0; i < 6; i++)
         pack[i] = nic_address()[i];
 
-    *(unsigned short *)port_char = port_dest;
+    *(unsigned short *)port_char = port;
     //port_char = reinterpret_cast<unsigned char>(port_dest);
     for(int i = 6; i < 8; i++)
         pack[i] = port_char[i-6];
@@ -380,24 +399,38 @@ void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char ad
     for(unsigned int i = 0; i < 6; i++, ++token, addr_dest = token, token = strchr(addr_dest, ':'))
         pack[i+8] = atol(addr_dest);
 
-    *(unsigned short *)port_char = port;
+    *(unsigned short *)port_char = port_dest;
     for(int i = 14; i<16;i++)
         pack[i] = port_char[i-14];
 
-    for(int i = 0; i<16;i++)
-        cout << " test "<< pack[i] << endl;
-
-    pack[16] = 0;///ack;
-    pack[17]  = 0;//ID;
+    pack[16] = ack;///ack;
+    pack[17]  = id;//ID;
     unsigned char size_char[sizeof(int)];
     *(unsigned int *)size_char = size;
-    //cout << " joj "<< size[0] << endl;
+    //cout << " joj "<< size << endl;
     for(int i = 18; i<22;i++)
         pack[i] = size_char[i-18];
 
-    for(unsigned int i = 0; i<size;i++)
-         pack[i+22] = data[i];   
+    for(unsigned int i = 0; i<size;i++){
+         pack[i+22] = data[i]; 
+     }
+}
 
+bool SOS::addr_check(unsigned char pack[]){
+
+    for(int i = 0; i < 6; i++){
+
+        if(pack[i+8] != nic_address()[i])
+            return 0;
+    }
+    unsigned char port_char[sizeof(short)];
+    *(unsigned short *)port_char = port;    
+    for(int i = 0; i < 2; i++){
+
+        if(pack[i+14] != port_char[i])
+            return 0;
+    }
+    return 1;
 }
 
 void SOS::statistics()

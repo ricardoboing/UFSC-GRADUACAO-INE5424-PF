@@ -17,9 +17,9 @@ void teste_conexao() {
         Delay (5000000);
         cout << "QEMU SEND | Protocol: "  << endl;
         memset(data, '1', 10);
-        data[1000 - 1] = '\n';
+        data[10 - 1] = '\n';
             
-        sos->send(data,32, "86:52:18:00:84:08", 8989);
+        sos->send(data,10, "86:52:18:00:84:08", 8989);
     } else {
         cout << "QEMU RECEIVE | Protocol: "  << endl;
         sos->receive(data,10);

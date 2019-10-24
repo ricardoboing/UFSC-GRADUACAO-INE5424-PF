@@ -440,8 +440,9 @@ protected:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Buffer * buf);
 
     void nic_send(unsigned  char data[], unsigned int size);
-    void nic_receive(char data[], unsigned int size);
-    void make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest);
+    void nic_receive(unsigned char data[], unsigned int size);
+    void make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest,unsigned char ack, unsigned char id);
+    bool addr_check(unsigned char pack[]);
 
 protected:
     static NIC<Ethernet> * nic;
