@@ -236,58 +236,52 @@ int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short po
     operacao = SEND;
     mutex->unlock();
     unsigned int n_frags = 1;
-    unsigned int frag_size = size;
-
+    unsigned int frag = 0;
     if (size > (nic->mtu() - header))
     {
-        frag_size = (nic->mtu() - header);
-        n_frags = size/(nic->mtu() - header)+1;
+        size = (nic->mtu() - header);
     }
+    
     char dest[6];
     char * token = strchr(addr_dest, ':');
     for(unsigned int i = 0; i < 6; i++, ++token, addr_dest = token, token = strchr(addr_dest, ':'))
         dest[i] = atol(addr_dest);
-    
+
+
+    unsigned char data_pack[header+size];
+    make_pack(data_pack, data, size, dest, port_dest, 0x0, msg_id, frag, n_frags);
+    unsigned int local_msg_id = msg_id;
+    msg_id++;
+    nic_send(data_pack, size+header);
+
     bool *timeout = new bool();
+    bool *msg = new bool();
 
-    for(unsigned int i=0; i<n_frags;i++){
-        if(i== n_frags-1){
-            frag_size = size - n_frags*(nic->mtu() - header);
-        }
-        unsigned char data_pack[header+size];
-        make_pack(data_pack, data, frag_size, dest, port_dest, 0x0, msg_id, i, n_frags);
-        unsigned int local_msg_id = msg_id;
-        msg_id++;
-        nic_send(data_pack, frag_size+header);
+    new Thread(&func_timeout, this, data_pack, size+header, timeout, msg);
 
-        bool *timeout = new bool();
-        bool *msg = new bool();
+    while (true) {
+        semaphore->p();
 
-        new Thread(&func_timeout, this, data_pack, frag_size+header, timeout, msg);
+        mutex->lock();
+        
+        if (*timeout) {
+            mutex->unlock();
+            break;
+        } else {
+            unsigned char ack[header];
+            nic_receive(ack, header);
 
-        while (true) {
-            semaphore->p();
-
-            mutex->lock();
-            
-            if (*timeout) {
+            if ( addr_check(ack) && ack[16] && ack[17] == local_msg_id) {
+                cout<< "ACK" << endl;
+                *msg = true;
                 mutex->unlock();
                 break;
-            } else {
-                unsigned char ack[header];
-                nic_receive(ack, header);
-
-                if ( addr_check(ack) && ack[16] && ack[17] == local_msg_id && ack[18] == i) {
-                    cout<< "ACK: Frag "<< i+1 << "/" << n_frags << endl;
-                    *msg = true;
-                    mutex->unlock();
-                    break;
-                }
             }
-
-            mutex->unlock();
         }
+
+        mutex->unlock();
     }
+    
 
     mutex->lock();
     operacao = DEFAULT;
