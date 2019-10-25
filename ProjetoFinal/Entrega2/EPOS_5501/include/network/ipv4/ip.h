@@ -453,6 +453,7 @@ protected:
     unsigned short protocol;
     unsigned short port;
     unsigned int operacao;
+    unsigned int msg_id;
 
 };
 

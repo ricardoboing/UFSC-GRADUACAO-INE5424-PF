@@ -245,8 +245,9 @@ int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short po
         dest[i] = atol(addr_dest);
 
     unsigned char data_pack[header+size];
-    make_pack(data_pack, data, size, dest, port_dest,0x0,0x0);
-
+    make_pack(data_pack, data, size, dest, port_dest,0x0,msg_id);
+    unsigned int local_msg_id = msg_id;
+    msg_id++;
     nic_send(data_pack, size+header);
 
     bool *timeout = new bool();
@@ -266,7 +267,7 @@ int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short po
             unsigned char ack[header];
             nic_receive(ack, header);
 
-            if ( addr_check(ack) && ack[16]) {
+            if ( addr_check(ack) && ack[16] && ack[17] == local_msg_id) {
                 cout<< "ACK" << endl;
                 *msg = true;
                 mutex->unlock();
@@ -315,8 +316,6 @@ int SOS::receive(char data[], unsigned int size)
                 for(int i = 0; i < 6; i++)
                     addr_dest[i] = data_pack[i];
                 
-                for(int i = 0; i < 6; i++)
-                    cout<< addr_dest[i] << "-" <<data_pack[i]<<endl;
 
                 unsigned short port_dest = 0;
                 port_dest = data_pack[7] << 8 | data_pack[6];
@@ -360,6 +359,7 @@ SOS::SOS(unsigned short porta)
     protocol = 0x8888;
     operacao = DEFAULT;
     header = 22;
+    msg_id = 0;
 
     mutex = new Mutex();
     semaphore = new Semaphore(0);
