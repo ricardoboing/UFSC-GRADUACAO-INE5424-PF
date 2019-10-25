@@ -232,7 +232,7 @@ template<> struct Traits<SOS>: public Traits<void>
 {
     static const bool enabled = (Traits<Build>::NODES > 1);
 
-    static const unsigned int RETRIES = 10;
+    static const unsigned int RETRIES = 3;
     static const unsigned int TIMEOUT = 10; // s
 };
 template<> struct Traits<IP>: public Traits<Network>

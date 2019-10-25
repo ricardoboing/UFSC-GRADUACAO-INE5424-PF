@@ -227,6 +227,8 @@ void SOS::send(char data[]) {
     using namespace EPOS;
     OStream cout;
     cout << "SOS::send" << endl;
+    Address* addr = new SOS::Address(SOS::nic_address(), 123);
+    cout << addr->addr() << ":" << addr->port() << endl;
 
     SOS::nic->send(nic->broadcast(), protocol, data, nic->mtu());
 }

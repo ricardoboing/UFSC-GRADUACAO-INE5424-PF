@@ -195,12 +195,12 @@ unsigned short IP::checksum(const void * data, unsigned int size)
 
 
 
-int func_timeout(SOS* sos, char data[], unsigned int size, bool* timeout, bool *msg)
+int func_timeout(SOS* sos, unsigned char data[], unsigned int size, bool* timeout, bool *msg)
 {
     sos->timeout(data, size, timeout, msg);
     return 0;
 }
-void SOS::timeout(char data[], unsigned int size, bool* timeout, bool *msg)
+void SOS::timeout(unsigned char data[], unsigned int size, bool* timeout, bool *msg)
 {
     OStream cout;
 
@@ -227,18 +227,37 @@ void SOS::timeout(char data[], unsigned int size, bool* timeout, bool *msg)
     mutex->unlock();
 }
 
-int SOS::send(char data[], unsigned int size)
+int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short port_dest)
 {
+    using namespace EPOS;
+    OStream cout;
+
     mutex->lock();
     operacao = SEND;
     mutex->unlock();
+    unsigned int n_frags = 1;
+    unsigned int frag = 0;
+    if (size > (nic->mtu() - header))
+    {
+        size = (nic->mtu() - header);
+    }
+    
+    char dest[6];
+    char * token = strchr(addr_dest, ':');
+    for(unsigned int i = 0; i < 6; i++, ++token, addr_dest = token, token = strchr(addr_dest, ':'))
+        dest[i] = atol(addr_dest);
 
-    nic_send(data, size);
+
+    unsigned char data_pack[header+size];
+    make_pack(data_pack, data, size, dest, port_dest, 0x0, msg_id, frag, n_frags);
+    unsigned int local_msg_id = msg_id;
+    msg_id++;
+    nic_send(data_pack, size+header);
 
     bool *timeout = new bool();
     bool *msg = new bool();
 
-    new Thread(&func_timeout, this, data, size, timeout, msg);
+    new Thread(&func_timeout, this, data_pack, size+header, timeout, msg);
 
     while (true) {
         semaphore->p();
@@ -249,10 +268,11 @@ int SOS::send(char data[], unsigned int size)
             mutex->unlock();
             break;
         } else {
-            char ack[1];
-            nic_receive(ack, 1);
+            unsigned char ack[header];
+            nic_receive(ack, header);
 
-            if (ack[0] == '3') {
+            if ( addr_check(ack) && ack[16] && ack[17] == local_msg_id) {
+                cout<< "ACK" << endl;
                 *msg = true;
                 mutex->unlock();
                 break;
@@ -261,6 +281,7 @@ int SOS::send(char data[], unsigned int size)
 
         mutex->unlock();
     }
+    
 
     mutex->lock();
     operacao = DEFAULT;
@@ -271,14 +292,16 @@ int SOS::send(char data[], unsigned int size)
 }
 int SOS::receive(char data[], unsigned int size)
 {
+    using namespace EPOS;
+    OStream cout;
     mutex->lock();
     operacao = RCV;
     mutex->unlock();
 
     bool *timeout = new bool();
     bool *msg = new bool();
-
-    new Thread(&func_timeout, this, data, size, timeout, msg);
+    //deve ser removido?
+    //new Thread(&func_timeout, this, data, size, timeout, msg);
 
     while (true) {
         semaphore->p();
@@ -288,13 +311,27 @@ int SOS::receive(char data[], unsigned int size)
             mutex->unlock();
             break;
         } else {
-            nic_receive(data, size);
-            *msg = true;
-            char ack[1];
-            ack[1] = '3';
-            nic_send(ack, 1);
-            mutex->unlock();
-            break;
+            unsigned char data_pack[header+size];
+            nic_receive(data_pack, header+size);
+            if(addr_check(data_pack)){
+                cout<< "addr match" <<endl;
+                *msg = true;
+                unsigned char ack[header];
+                char addr_dest[6];
+                for(int i = 0; i < 6; i++)
+                    addr_dest[i] = data_pack[i];
+                
+
+                unsigned short port_dest = 0;
+                port_dest = data_pack[7] << 8 | data_pack[6];
+                make_pack(ack,data, 0, addr_dest, port_dest,0x1, data_pack[17],data_pack[18],data_pack[19]);
+                nic_send(ack, header);
+                for(unsigned i = 0; i < size; i++){
+                    data[i] = data_pack[i+header];
+                }
+                mutex->unlock();
+                break;
+            }
         }
         mutex->unlock();
     }
@@ -321,11 +358,13 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
     
     mutex->unlock();
 }
-SOS::SOS(unsigned int port)
+SOS::SOS(unsigned short porta)
 {
-    port = port;
+    port = porta;
     protocol = 0x8888;
     operacao = DEFAULT;
+    header = 24;
+    msg_id = 0;
 
     mutex = new Mutex();
     semaphore = new Semaphore(0);
@@ -339,16 +378,70 @@ SOS::~SOS()
     delete mutex;
     delete semaphore;
 }
-void SOS::nic_send(char data[], unsigned int size)
+void SOS::nic_send(unsigned char data[], unsigned int size)
 {
     SOS::nic->send(SOS::broadcast(), protocol, data, size);
 }
-void SOS::nic_receive(char data[], unsigned int size)
+void SOS::nic_receive(unsigned char data[], unsigned int size)
 {
     NIC<Ethernet>::Address src;
     NIC<Ethernet>::Protocol prot;
     SOS::nic->receive(&src, &prot, data, size);
 }
+
+void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest,unsigned char ack, unsigned char id, unsigned char frag, unsigned char n_frag){
+    unsigned char port_char[sizeof(short)];
+    OStream cout;
+    for(int i = 0; i < 6; i++)
+        pack[i] = nic_address()[i];
+
+    *(unsigned short *)port_char = port;
+    //port_char = reinterpret_cast<unsigned char>(port_dest);
+    for(int i = 6; i < 8; i++)
+        pack[i] = port_char[i-6];
+
+    for(unsigned int i = 0; i < 6; i++)
+        pack[i+8] = addr_dest[i];
+
+    *(unsigned short *)port_char = port_dest;
+    for(int i = 14; i<16;i++)
+        pack[i] = port_char[i-14];
+
+    pack[16] = ack;///ack;
+    pack[17] = id;//ID;
+    pack[18] = frag;// frag atual;
+    pack[19] = n_frag; // total; 
+
+    unsigned char size_char[sizeof(int)];
+    *(unsigned int *)size_char = size;
+    
+    for(int i = 20; i<24;i++)
+        pack[i] = size_char[i-20];
+    for(unsigned int i = 0; i<size;i++){
+         pack[i+header] = data[i]; 
+     }
+
+     // for(int i = 0; i < 22; i++)
+     //                cout<< pack[i]<<endl;
+}
+
+bool SOS::addr_check(unsigned char pack[]){
+    OStream cout;
+    for(int i = 0; i < 6; i++){
+
+        if(pack[i+8] != nic_address()[i])
+            return 0;
+    }
+    unsigned char port_char[sizeof(short)];
+    *(unsigned short *)port_char = port;    
+    for(int i = 0; i < 2; i++){
+
+        if(pack[i+14] != port_char[i])
+            return 0;
+    }
+    return 1;
+}
+
 void SOS::statistics()
 {
     OStream cout;
