@@ -441,7 +441,7 @@ protected:
 
     void nic_send(unsigned  char data[], unsigned int size);
     void nic_receive(unsigned char data[], unsigned int size);
-    void make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest,unsigned char ack, unsigned char id);
+    void make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest,unsigned char ack, unsigned char id, unsigned char frag, unsigned char n_frag);
     bool addr_check(unsigned char pack[]);
 
 protected:

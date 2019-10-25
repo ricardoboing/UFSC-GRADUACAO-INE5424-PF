@@ -235,47 +235,58 @@ int SOS::send(char data[],unsigned int size, char addr_dest[], unsigned short po
     mutex->lock();
     operacao = SEND;
     mutex->unlock();
+    unsigned int n_frags = 1;
+    unsigned int frag_size = size;
+
     if (size > (nic->mtu() - header))
     {
-        size = (nic->mtu() - header);
+        frag_size = (nic->mtu() - header);
+        n_frags = size/(nic->mtu() - header)+1;
     }
     char dest[6];
     char * token = strchr(addr_dest, ':');
     for(unsigned int i = 0; i < 6; i++, ++token, addr_dest = token, token = strchr(addr_dest, ':'))
         dest[i] = atol(addr_dest);
-
-    unsigned char data_pack[header+size];
-    make_pack(data_pack, data, size, dest, port_dest,0x0,msg_id);
-    unsigned int local_msg_id = msg_id;
-    msg_id++;
-    nic_send(data_pack, size+header);
-
+    
     bool *timeout = new bool();
-    bool *msg = new bool();
 
-    new Thread(&func_timeout, this, data_pack, size+header, timeout, msg);
+    for(unsigned int i=0; i<n_frags;i++){
+        if(i== n_frags-1){
+            frag_size = size - n_frags*(nic->mtu() - header);
+        }
+        unsigned char data_pack[header+size];
+        make_pack(data_pack, data, frag_size, dest, port_dest, 0x0, msg_id, i, n_frags);
+        unsigned int local_msg_id = msg_id;
+        msg_id++;
+        nic_send(data_pack, frag_size+header);
 
-    while (true) {
-        semaphore->p();
+        bool *timeout = new bool();
+        bool *msg = new bool();
 
-        mutex->lock();
-        
-        if (*timeout) {
-            mutex->unlock();
-            break;
-        } else {
-            unsigned char ack[header];
-            nic_receive(ack, header);
+        new Thread(&func_timeout, this, data_pack, frag_size+header, timeout, msg);
 
-            if ( addr_check(ack) && ack[16] && ack[17] == local_msg_id) {
-                cout<< "ACK" << endl;
-                *msg = true;
+        while (true) {
+            semaphore->p();
+
+            mutex->lock();
+            
+            if (*timeout) {
                 mutex->unlock();
                 break;
-            }
-        }
+            } else {
+                unsigned char ack[header];
+                nic_receive(ack, header);
 
-        mutex->unlock();
+                if ( addr_check(ack) && ack[16] && ack[17] == local_msg_id && ack[18] == i) {
+                    cout<< "ACK: Frag "<< i+1 << "/" << n_frags << endl;
+                    *msg = true;
+                    mutex->unlock();
+                    break;
+                }
+            }
+
+            mutex->unlock();
+        }
     }
 
     mutex->lock();
@@ -319,7 +330,7 @@ int SOS::receive(char data[], unsigned int size)
 
                 unsigned short port_dest = 0;
                 port_dest = data_pack[7] << 8 | data_pack[6];
-                make_pack(ack,data, 0, addr_dest, port_dest,0x1, data_pack[17]);
+                make_pack(ack,data, 0, addr_dest, port_dest,0x1, data_pack[17],data_pack[18],data_pack[19]);
                 nic_send(ack, header);
                 for(unsigned i = 0; i < size; i++){
                     data[i] = data_pack[i+header];
@@ -358,7 +369,7 @@ SOS::SOS(unsigned short porta)
     port = porta;
     protocol = 0x8888;
     operacao = DEFAULT;
-    header = 22;
+    header = 24;
     msg_id = 0;
 
     mutex = new Mutex();
@@ -384,7 +395,7 @@ void SOS::nic_receive(unsigned char data[], unsigned int size)
     SOS::nic->receive(&src, &prot, data, size);
 }
 
-void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest,unsigned char ack, unsigned char id){
+void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char addr_dest[], unsigned short port_dest,unsigned char ack, unsigned char id, unsigned char frag, unsigned char n_frag){
     unsigned char port_char[sizeof(short)];
     OStream cout;
     for(int i = 0; i < 6; i++)
@@ -403,15 +414,17 @@ void SOS::make_pack(unsigned char pack[],char data[], unsigned int size, char ad
         pack[i] = port_char[i-14];
 
     pack[16] = ack;///ack;
-    pack[17]  = id;//ID;
+    pack[17] = id;//ID;
+    pack[18] = frag;// frag atual;
+    pack[19] = n_frag; // total; 
+
     unsigned char size_char[sizeof(int)];
     *(unsigned int *)size_char = size;
     
-    for(int i = 18; i<22;i++)
-        pack[i] = size_char[i-18];
-
+    for(int i = 20; i<24;i++)
+        pack[i] = size_char[i-20];
     for(unsigned int i = 0; i<size;i++){
-         pack[i+22] = data[i]; 
+         pack[i+header] = data[i]; 
      }
 
      // for(int i = 0; i < 22; i++)
