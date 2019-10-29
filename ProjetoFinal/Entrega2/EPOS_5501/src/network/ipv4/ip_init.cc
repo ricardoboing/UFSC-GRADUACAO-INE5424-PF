@@ -42,6 +42,11 @@ void IP::init(unsigned int unit)
     db<Init, IP>(TRC) << "IP::init(u=" << unit << ")" << endl;
 
     _networks[unit] = new (SYSTEM) IP(unit);
+
+    SOS::init();
+}
+void SOS::init() {
+    SOS::ponteiro = new (SYSTEM) SOS();
 }
 
 __END_SYS

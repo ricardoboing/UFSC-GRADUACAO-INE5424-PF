@@ -324,16 +324,16 @@ void PCNet32::handle_int()
 
                     db<PCNet32>(INF) << "PCNet32::handle_int:desc[" << i << "]=" << desc << " => " << *desc << endl;
                     
-                    using namespace EPOS;
-                    OStream cout;
+                    //using namespace EPOS;
+                    //OStream cout;
 
                     IC::disable(IC::irq2int(_irq));
                     
                     if(!notify(frame->header()->prot(), buf)) { // No one was waiting for this frame, so let it free for receive()
                         free(buf);
-                        cout << "PCNet32::handle_int free" << endl;
+                        //cout << "PCNet32::handle_int free" << endl;
                     } else {
-                        cout << "PCNet32::handle_int not free" << endl;
+                        //cout << "PCNet32::handle_int not free" << endl;
                     }
                     // TODO: this serialization is much too restrictive. It was done this way for students to play with
                     IC::enable(IC::irq2int(_irq));
