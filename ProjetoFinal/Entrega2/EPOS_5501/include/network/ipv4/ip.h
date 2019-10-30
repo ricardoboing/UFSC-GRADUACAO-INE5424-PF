@@ -456,8 +456,8 @@ public:
         RCV = 2
     };
 
-    static const unsigned int RETRIES = Traits<SOS>::TIMEOUT;
-    static const unsigned int TIMEOUT = Traits<SOS>::RETRIES;
+    static const unsigned int RETRIES = Traits<SOS>::RETRIES;
+    static const unsigned int TIMEOUT = Traits<SOS>::TIMEOUT;
 
     SOS();
     ~SOS();
@@ -469,8 +469,7 @@ public:
     void detach(Observer* obs, const unsigned int& port) { _observed->detach(obs, port); }
 
     int send(const NIC_Address& dst, unsigned int port_ori, unsigned int port_dest, char data[], unsigned int size);
-    int receive(char data[], unsigned int& port);
-
+    
     static const unsigned int header = 9;
     static const unsigned int mtu() { return SOS::nic->mtu() - header; }//return SOS::nic->mtu() - SOS::header; }
     static void statistics();
@@ -478,6 +477,7 @@ public:
 
 protected:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Ethernet::Buffer * buf);
+    int receive(char data[]);
 
     void nic_send(const NIC_Address& dst, char data[], unsigned int size);
     void nic_receive(NIC_Address* src, char data[], unsigned int size);

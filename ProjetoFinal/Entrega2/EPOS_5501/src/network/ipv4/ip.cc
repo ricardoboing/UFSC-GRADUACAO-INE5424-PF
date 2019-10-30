@@ -203,7 +203,8 @@ unsigned short IP::checksum(const void * data, unsigned int size)
 
 
 
-void int_to_char(unsigned int inteiro, char data[]) {
+void int_to_char(unsigned int inteiro, char data[])
+{
     char conversao[4];
     itoa(inteiro, conversao);
 
@@ -238,34 +239,6 @@ void int_to_char(unsigned int inteiro, char data[]) {
 
 
 
-
-
-
-
-
-
-SOS::SOS_Communicator::SOS_Communicator(unsigned int porta)
-{
-    msg_id = 0;
-    port = porta;
-
-    sos = SOS::ponteiro;
-    mutex = new Mutex();
-    semaphore = new Semaphore(0);
-
-    sos->attach(this, port);
-}
-SOS::SOS_Communicator::~SOS_Communicator()
-{
-    sos->detach(this, port);
-    
-    delete mutex;
-    delete semaphore;
-    delete sos;
-}
-
-
-
 int func_timeout(SOS::NIC_Address* dst, unsigned int port, unsigned int port_dst, char data[], unsigned int size, bool* timeout, bool *msg, Mutex* mutex, Semaphore* semaphore)
 {
     OStream cout;
@@ -280,7 +253,8 @@ int func_timeout(SOS::NIC_Address* dst, unsigned int port, unsigned int port_dst
         }
         mutex->unlock();
 
-        cout << "SOS::SEND | RETRIE " << c+1 << endl;
+        cout << endl << "SOS_Communicator::SEND | RETRIE " << c+1 << endl;
+        //cout << "SOS::SEND | RETRIE " << data << endl;
         SOS::ponteiro->send(*dst, port, port_dst, data, size);
     }
 
@@ -290,7 +264,6 @@ int func_timeout(SOS::NIC_Address* dst, unsigned int port, unsigned int port_dst
     mutex->unlock();
     return 0;
 }
-
 int SOS::SOS_Communicator::send(const NIC_Address& dst, unsigned int port_dest, char data[], unsigned int size)
 {
     OStream cout;
@@ -320,9 +293,7 @@ int SOS::SOS_Communicator::send(const NIC_Address& dst, unsigned int port_dest, 
         pacote[header+c] = data[c];
     }
 
-    // Nao eh aqui olha direito
     sos->send(dst, port, port_dest, pacote, size+header);
-    // Nao mexe
 
     bool *timeout = new bool();
     bool *msg = new bool();
@@ -331,7 +302,6 @@ int SOS::SOS_Communicator::send(const NIC_Address& dst, unsigned int port_dest, 
     NIC_Address* ds  = new NIC_Address("00");
     *ds = dst;
 
-    //int func_timeout(       dst, port, port_dest, data[], size,        timeout, msg, mutex, semaphore)
     new Thread(&func_timeout, ds, port, port_dest, pacote, size+header, timeout, msg, mutex, semaphore);
 
     bool retorno = false;
@@ -341,10 +311,10 @@ int SOS::SOS_Communicator::send(const NIC_Address& dst, unsigned int port_dest, 
         
         if (*timeout) {
             mutex->unlock();
-            cout << "TIMEOUT" << endl;
+            cout << "TIMEOUT " << endl;
             break;
         } else {
-            cout<< "ACK" << endl;
+            cout<< "ACK " << msg_id << " ";
             *msg = true;
             msg_id++;
             mutex->unlock();
@@ -365,10 +335,10 @@ int SOS::SOS_Communicator::receive(char data[], unsigned int size)
 
     mutex->lock();
     msg_id++;
-    mutex->unlock();
     
     char pacote[size+header];
     memcpy(pacote, *dado, size);
+    mutex->unlock();
 
     for (unsigned int c = 0; c < size; c++) {
         data[c] = pacote[header+c];
@@ -381,19 +351,39 @@ void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buf
     OStream cout;
 
     char id[4];
-    memcpy(id, *dado, 4);
+    memcpy(id, *buf, 4);
 
     unsigned int id_int = atol(id);
 
-    cout << "update id_int: " << id_int << endl;
-
+    mutex->lock();
     if (id_int == msg_id) {
-        cout << "update id_int == msg_id" << endl;
+        //cout << "SOS_Communicator::update id_int == msg_id" << endl;
         *dado = *buf;
+        mutex->unlock();
         semaphore->v();
+    } else {
+        mutex->unlock();
     }
 }
+SOS::SOS_Communicator::SOS_Communicator(unsigned int porta)
+{
+    msg_id = 0;
+    port = porta;
 
+    sos = SOS::ponteiro;
+    mutex = new Mutex();
+    semaphore = new Semaphore(0);
+
+    sos->attach(this, port);
+}
+SOS::SOS_Communicator::~SOS_Communicator()
+{
+    sos->detach(this, port);
+    
+    delete mutex;
+    delete semaphore;
+    delete sos;
+}
 
 
 
@@ -434,16 +424,16 @@ int SOS::send(const NIC_Address& dst, unsigned int port_ori, unsigned int port_d
         pacote[header+c] = data[c];
     }
 
-    OStream cout;
-    cout << "send " << pacote << endl;
+    //OStream cout;
+    //cout << "send " << pacote << endl;
 
     nic_send(dst, pacote, size+header);
 
     return 0;
 }
-int SOS::receive(char data[], unsigned int& port)
+int SOS::receive(char data[])
 {
-    // Inicializacao gambiarra so pra passar como parametro :)
+    
     NIC_Address* src = new NIC_Address("00");
 
     char pacote[mtu()+header];
@@ -461,17 +451,19 @@ int SOS::receive(char data[], unsigned int& port)
     port_char[2] = pacote[6];
     port_char[3] = pacote[7];
 
-    port = atol(port_char);
+    unsigned int port = atol(port_char);
 
     char pacote_ack[header];
 
+    OStream cout;
     char* t = data; // Gambiarra pra mandar por parametro
     if (notify(port, &t)) {
+        cout << "SOS::receive port " << port << " notify " << endl;
         // Se a msg eh ack nao precisa mandar ack
         if (pacote[8] == '1') {
             return 1;
         }
-
+        //cout << "SOS::receive port " << port << " notify ack " << endl;
         // Porta origem
         pacote_ack[0] = port_char[0];
         pacote_ack[1] = port_char[1];
@@ -495,16 +487,16 @@ int SOS::receive(char data[], unsigned int& port)
 
         // Envia o ACK
         nic_send(*src, pacote_ack, header+4);
+    } else {
+        cout << "SOS::receive | BUG | port " << port_char << " not notify " << endl;
     }
     return 1;
 }
-
 void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot, Ethernet::Buffer * buf)
 {
     char data[mtu()];
-    unsigned int port;
 
-    receive(data, port);
+    receive(data);
 }
 SOS::SOS()
 {
@@ -526,8 +518,8 @@ void SOS::nic_receive(NIC_Address* src, char data[], unsigned int size)
     NIC<Ethernet>::Protocol prot;
     SOS::nic->receive(src, &prot, data, size);
     
-    OStream cout;
-    cout << "NIC_Receive: " << data << endl;
+    //OStream cout;
+    //cout << "NIC_Receive: " << data << endl;
 }
 void SOS::statistics()
 {
