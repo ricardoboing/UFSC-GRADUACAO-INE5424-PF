@@ -414,83 +414,81 @@ protected:
 
 class SOS: private NIC<Ethernet>::Observer {
 public:
-    typedef char* Buffer;
+    typedef Ethernet::Buffer Buffer;
     typedef NIC<Ethernet>::Address NIC_Address;
 
     typedef Data_Observer<Buffer, unsigned int> Observer;
     typedef Data_Observed<Buffer, unsigned int> Observed;
 
-    class SOS_Communicator: private SOS::Observer {
-        friend class SOS;
+    static const unsigned int RETRIES = Traits<SOS>::RETRIES;
+    static const unsigned int TIMEOUT = Traits<SOS>::TIMEOUT;
 
-    public:
-        SOS_Communicator(unsigned int porta);
-        ~SOS_Communicator();
-
-        int send(const NIC_Address& dst, unsigned int port_dest, char data[], unsigned int size);
-        int receive(char data[], unsigned int size);
-
-        static const unsigned int header = 8;
-        static const unsigned int mtu() { return SOS::mtu() - header; }
-
-    protected:
-        void update(Observed * obs, const unsigned int& prot, Buffer * buf);
-
-    protected:
-        SOS* sos; // Trocar por um static (compartilhado)
-
-        Semaphore* semaphore;
-        Mutex* mutex;
-
-        Buffer* dado;
-
-        unsigned int port;
-        unsigned int msg_id;
-
-    };
-
-public:
     enum {
         DEFAULT = 0,
         SEND = 1,
         RCV = 2
     };
 
-    static const unsigned int RETRIES = Traits<SOS>::RETRIES;
-    static const unsigned int TIMEOUT = Traits<SOS>::TIMEOUT;
+    struct Pacote {
+        unsigned int port_destination;
+        unsigned int id;
+        unsigned int port_source;
+        unsigned int size;
+        unsigned int type;
+        char data[1480]; // data[nic->mtu() - bytes do cabecalho]
+    };
 
+    class SOS_Communicator: private SOS::Observer {
+    public:
+        SOS_Communicator(unsigned int porta);
+        ~SOS_Communicator();
+
+        int send(const char* address, unsigned int port_dest, char data[], unsigned int size);
+        int receive(char data[], unsigned int size);
+
+    protected:
+        void update(Observed * obs, const unsigned int& prot, Buffer * buf);
+
+    protected:
+        SOS* sos;
+
+        Semaphore* semaphore;
+        Mutex* mutex;
+
+        unsigned int port;
+        unsigned int msg_id;
+    };
+
+public:
     SOS();
     ~SOS();
 
     static SOS* ponteiro;
     static void init();
 
+    void send(const NIC_Address& dst, Pacote* pacote, unsigned int size);
+    void receive(Pacote* pacote, unsigned int size);
+    
     void attach(Observer* obs, const unsigned int& port) { _observed->attach(obs, port); }
     void detach(Observer* obs, const unsigned int& port) { _observed->detach(obs, port); }
 
-    int send(const NIC_Address& dst, unsigned int port_ori, unsigned int port_dest, char data[], unsigned int size);
-    
-    static const unsigned int header = 9;
-    static const unsigned int mtu() { return SOS::nic->mtu() - header; }//return SOS::nic->mtu() - SOS::header; }
     static void statistics();
     static NIC_Address nic_address() { return SOS::nic->address(); }
 
 protected:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Ethernet::Buffer * buf);
-    int receive(char data[]);
 
-    void nic_send(const NIC_Address& dst, char data[], unsigned int size);
-    void nic_receive(NIC_Address* src, char data[], unsigned int size);
+    void nic_send(const NIC_Address& dst, Pacote* pacote, unsigned int size);
+    void nic_receive(Pacote* pacote, unsigned int size);
 
 protected:
     static NIC<Ethernet> * nic;
     Observed *_observed;
 
-    unsigned int comm_port;
     unsigned short protocol = 0x8888;
 
 private:
-    bool notify(const unsigned int& port, Buffer * buf) { return _observed->notify(port, buf); }
+    bool notify(const unsigned int& port, Buffer *buf) { return _observed->notify(port, buf); }
 
 };
 

@@ -79,7 +79,7 @@ int PCNet32::receive(Address * src, Protocol * prot, void * data, unsigned int s
 
     // Copy the data
     memcpy(data, frame->data<void>(), (buf->size() > size) ? size : buf->size());
-
+    
     // Release the buffer to the NIC
     desc->status = Rx_Desc::OWN;
 
@@ -324,8 +324,10 @@ void PCNet32::handle_int()
 
                     db<PCNet32>(INF) << "PCNet32::handle_int:desc[" << i << "]=" << desc << " => " << *desc << endl;
                     
-                    //using namespace EPOS;
-                    //OStream cout;
+                    using namespace EPOS;
+                    OStream cout;
+
+//                    cout << "interrupt" << endl;
 
                     IC::disable(IC::irq2int(_irq));
                     
