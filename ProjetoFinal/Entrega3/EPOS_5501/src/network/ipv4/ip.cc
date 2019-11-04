@@ -201,35 +201,11 @@ unsigned short IP::checksum(const void * data, unsigned int size)
 
 
 
-int func_timeout(SOS* sos, SOS::NIC_Address* address, SOS::Pacote* pacote, unsigned int size, bool *send_finish, Mutex* mutex, Semaphore* semaphore)
+
+int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, char data[], unsigned int size)
 {
     OStream cout;
 
-    for (unsigned int c = 0; c < SOS::RETRIES; c++) {
-        Delay(SOS::TIMEOUT*100000);
-        
-        mutex->lock();
-        if (*send_finish) {
-            mutex->unlock();
-            return 0;
-        }
-        mutex->unlock();
-
-        cout << endl << "func_timeout | RETRIE " << c+1 << endl;
-        sos->send(*address, pacote, size);
-    }
-
-    mutex->lock();
-    if (!*send_finish) {
-        *send_finish = true;
-        semaphore->v();
-    }
-    mutex->unlock();
-
-    return 0;
-}
-int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, char data[], unsigned int size)
-{
     SOS::NIC_Address addr(address);
 
     Pacote pacote;
@@ -242,20 +218,24 @@ int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, cha
 
     sos->send(addr, &pacote, size);
 
-    bool *send_finish = new bool();
-    new Thread(&func_timeout, sos, &addr, &pacote, size, send_finish, mutex, semaphore);
+    Semaphore_Handler handler(semaphore);
+    for (unsigned int c = 0; c < SOS::RETRIES; c++) {
+        Alarm alarm(SOS::TIMEOUT, &handler, 1);
+        
+        semaphore->p();
 
-    semaphore->p();
+        mutex->lock();
+        if (msg_id != pacote.id) {
+            mutex->unlock();
+            return 1;
+        }
+        mutex->unlock();
 
-    mutex->lock();
-    int retorno = 0; // Timeout
-    if (!*send_finish) { // send_finish == true significa timeout
-        retorno = 1; // Sucesso
-        *send_finish = true;
+        cout << "RETRIE " << c << " | msg_id: " << msg_id << endl;
+        sos->send(addr, &pacote, size);
     }
-    mutex->unlock();
 
-    return retorno;
+    return 0;
 }
 int SOS::SOS_Communicator::receive(char data[], unsigned int size)
 {
@@ -265,7 +245,6 @@ int SOS::SOS_Communicator::receive(char data[], unsigned int size)
     sos->receive(&pacote, sizeof(Pacote));
 
     memcpy(data, pacote.data, size);
-
     return 0;
 }
 void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buffer * buf)
@@ -295,7 +274,9 @@ void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buf
     }
 
     if (pacote.id == msg_id) {
+        mutex->lock();
         msg_id++;
+        mutex->unlock();
         semaphore->v();
     }
 
@@ -324,11 +305,9 @@ SOS::SOS_Communicator::~SOS_Communicator()
 {
     sos->detach(this, port);
     
-    //delete mutex;
-    //delete semaphore;
+    delete mutex;
+    delete semaphore;
 }
-
-
 void SOS::send(const NIC_Address& adress, Pacote* pacote, unsigned int size)
 {
     nic_send(adress, pacote, size);

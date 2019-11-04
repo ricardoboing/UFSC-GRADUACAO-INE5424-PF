@@ -421,7 +421,9 @@ public:
     typedef Data_Observed<Buffer, unsigned int> Observed;
 
     static const unsigned int RETRIES = Traits<SOS>::RETRIES;
-    static const unsigned int TIMEOUT = Traits<SOS>::TIMEOUT;
+    static const unsigned int TIMEOUT = Traits<SOS>::TIMEOUT*100000;
+
+    static SOS* ponteiro;
 
     enum {
         DEFAULT = 0,
@@ -463,7 +465,6 @@ public:
     SOS();
     ~SOS();
 
-    static SOS* ponteiro;
     static void init();
 
     void send(const NIC_Address& dst, Pacote* pacote, unsigned int size);
@@ -499,13 +500,3 @@ __END_SYS
 #endif
 
 #endif
-
-/*
-typedef Data_Observer<Buffer, Protocol> Observer;
-typedef Data_Observed<Buffer, Protocol> Observed;
-
-static void attach(Observer * obs, const Protocol & prot) { _observed.attach(obs, prot); }
-static void detach(Observer * obs, const Protocol & prot) { _observed.detach(obs, prot); }
-
-static bool notify(const Protocol & prot, Buffer * buf) { return _observed.notify(prot, buf); }
-*/
