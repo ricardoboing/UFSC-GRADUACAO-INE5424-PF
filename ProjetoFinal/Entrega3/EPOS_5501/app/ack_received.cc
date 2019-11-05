@@ -13,7 +13,9 @@ void ack_received() {
     const char* str = "86:52:18:00:84:08";
     SOS::SOS_Communicator* sos1 = new SOS::SOS_Communicator(8989);
 
-    if(SOS::nic_address()[5] % 2) {
+    cout << SOS::nic_address() << endl;
+
+    if(SOS::nic_address()[5] == 7) {
         Delay (5000000);
         cout << "QEMU SEND"  << endl;
 
@@ -23,13 +25,17 @@ void ack_received() {
                 break;
             }
         }
-    } else {
+    }
+    if (SOS::nic_address()[5] == 8) {
         cout << "QEMU RECEIVE"  << endl;
         
         for (;;) {
             sos1->receive(data, size);
             cout << "APP Data: " << data << endl;
         }
+    }
+    if (SOS::nic_address()[5] == 9) {
+        cout << "QEMU MASTER"  << endl;
     }
 }
 

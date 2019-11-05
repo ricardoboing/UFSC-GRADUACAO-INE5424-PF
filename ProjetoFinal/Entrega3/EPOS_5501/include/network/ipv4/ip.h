@@ -433,9 +433,10 @@ public:
     struct Pacote {
         unsigned int port_destination;
         unsigned int id;
+        unsigned int size = 0;
         unsigned int port_source;
         unsigned int type = MSG_TYPE_DEFAULT;
-        char data[1484]; // data[nic->mtu() - bytes do cabecalho]
+        char data[1480]; // data[nic->mtu() - bytes do cabecalho]
     };
 
     class SOS_Communicator: private SOS::Observer {

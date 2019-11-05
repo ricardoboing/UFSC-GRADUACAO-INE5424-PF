@@ -210,6 +210,7 @@ int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, cha
 
     Pacote pacote;
     pacote.id = msg_id;
+    pacote.size = size;
     pacote.port_source = port;
     pacote.port_destination = port_dest;
     memcpy(pacote.data, data, size);
@@ -218,7 +219,7 @@ int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, cha
 
     Semaphore_Handler handler(semaphore);
     for (unsigned int c = 0; c < SOS::RETRIES; c++) {
-        Alarm alarm(SOS::TIMEOUT, &handler, 1);
+        Alarm alarm(SOS::TIMEOUT, &handler);
         
         semaphore->p();
 
@@ -253,18 +254,19 @@ void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buf
     memcpy(&pacote, buf->frame()->data<void>(), sizeof(Pacote));
 
     if (pacote.id <= msg_id && pacote.type != MSG_TYPE_ACK) {
-        Pacote ack;
-        ack.port_destination = pacote.port_source;
-        ack.port_source = pacote.port_destination;
-        ack.id = pacote.id;
-        ack.type = MSG_TYPE_ACK;
+        Pacote pacote_ack;
+        pacote_ack.port_destination = pacote.port_source;
+        pacote_ack.port_source = pacote.port_destination;
+        pacote_ack.id = pacote.id;
+        pacote_ack.size = pacote.size;
+        pacote_ack.type = MSG_TYPE_ACK;
 
         NIC_Address address;
         address = buf->frame()->src();
 
         //if (msg_id % 100 != 0) // Forca reenvio para testar RETRIE
             //if (msg_id < 1000) // Forca reenvios para testar TIMEOUT
-                sos->send(address, &ack);
+                sos->send(address, &pacote_ack);
     }
 
     if (pacote.id == msg_id) {

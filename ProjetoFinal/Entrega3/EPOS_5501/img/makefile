@@ -8,9 +8,14 @@ IMAGES 		:= $(subst .img,,$(shell find . -name \*.img -printf "%f\n")) \
 		$(IMAGES) $(subst .hex,,$(shell find . -name \*.bin -printf "%f\n"))
 IMAGE		:= $(addsuffix $(MACH_IMGSUFF),$(APPLICATION))
 OUTPUT		:= $(addsuffix .out,$(APPLICATION))
-PEER		:= p-$(APPLICATION)
-PEER_IMAGE	:= p-$(IMAGE)
-PEER_OUTPUT	:= p-$(OUTPUT)
+
+PEER		 := p-$(APPLICATION)
+PEER_IMAGE	 := p-$(IMAGE)
+PEER_OUTPUT	 := p-$(OUTPUT)
+
+PEER2		 := p-$(APPLICATION)
+PEER2_IMAGE	 := p-$(IMAGE)
+PEER2_OUTPUT := p-$(OUTPUT)
 
 ifeq ($(MMOD),emote3)
 FLASH		:= $(addsuffix .hex,$(APPLICATION))
@@ -31,13 +36,19 @@ DEBUGGER	:= $(DEBUGGER) -ex "add-symbol-file $(call DBSEC,$(SRC)/system/$(MACH)_
 endif
 PEER_DEBUGGER	:= $(DEBUGGER) -ex "add-symbol-file $(call DBSEC,$(APP)/$(APPLICATION),.text)"
 PEER_DEBUGGER	:= $(subst 1235,1236,$(PEER_DEBUGGER))
+
+PEER2_DEBUGGER	:= $(DEBUGGER) -ex "add-symbol-file $(call DBSEC,$(APP)/$(APPLICATION),.text)"
+PEER2_DEBUGGER	:= $(subst 1235,1237,$(PEER_DEBUGGER))
 endif
 
 PEER_EMULATOR	:= $(subst 1235,1236,$(EMULATOR))
+PEER2_EMULATOR	:= $(subst 1235,1237,$(EMULATOR))
 
 NETWORK	        := -netdev socket,id=vlan0,mcast=230.0.0.1:1234 -object filter-dump,id=dump0,netdev=vlan0,file=$(APPLICATION).pcap   -device pcnet,id=eth0,netdev=vlan0,mac=56:34:12:00:54:08 -device pcnet,id=eth1,mac=00:00:00:00:00:01
 # add the rest of the line to enable a dhcp server -netdev user,id=1,ipv6=off,restrict=on,net=10.0.1.0/24,host=10.0.1.1,dhcpstart=10.0.1.8
 PEER_NETWORK	:= -netdev socket,id=vlan0,mcast=230.0.0.1:1234 -object filter-dump,id=dump0,netdev=vlan0,file=$(PEER).pcap          -device pcnet,id=eth0,netdev=vlan0,mac=56:34:12:00:54:09 -device pcnet,id=eth1,mac=00:00:00:00:00:02
+
+PEER2_NETWORK	:= -netdev socket,id=vlan0,mcast=230.0.0.1:1234 -object filter-dump,id=dump0,netdev=vlan0,file=$(PEER2).pcap          -device pcnet,id=eth0,netdev=vlan0,mac=56:34:12:00:54:07 -device pcnet,id=eth1,mac=00:00:00:00:00:03
 
 ifeq ($(NODES),1)
 
@@ -69,6 +80,7 @@ ifneq ($(STIME),0)
 ifeq ($(NODES),1)
 		timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(IMAGE) | $(TEE) $(OUTPUT)
 else
+ifeq ($(NODES),2)
 		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(IMAGE) $(NETWORK) | $(TEE) $(OUTPUT) \
 		&& $(TCPDUMP) $(APPLICATION).pcap > $(APPLICATION).net \
 		&& read -p 'Press [Enter] key to close ...'" &
@@ -76,6 +88,19 @@ else
 		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(PEER_IMAGE) $(PEER_NETWORK) | $(TEE) $(PEER_OUTPUT) \
 		&& $(TCPDUMP) $(PEER).pcap > $(PEER).net \
 		&& read -p 'Press [Enter] key to close ...'" &
+else
+		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(IMAGE) $(NETWORK) | $(TEE) $(OUTPUT) \
+		&& $(TCPDUMP) $(APPLICATION).pcap > $(APPLICATION).net \
+		&& read -p 'Press [Enter] key to close ...'" &
+		sleep 2
+		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(PEER_IMAGE) $(PEER_NETWORK) | $(TEE) $(PEER_OUTPUT) \
+		&& $(TCPDUMP) $(PEER).pcap > $(PEER).net \
+		&& read -p 'Press [Enter] key to close ...'" &
+		sleep 2
+		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(PEER2_IMAGE) $(PEER2_NETWORK) | $(TEE) $(PEER2_OUTPUT) \
+		&& $(TCPDUMP) $(PEER2).pcap > $(PEER2).net \
+		&& read -p 'Press [Enter] key to close ...'" &
+endif
 endif
 endif
 
