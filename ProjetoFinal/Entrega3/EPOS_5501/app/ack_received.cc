@@ -7,9 +7,7 @@ using namespace EPOS;
 OStream cout;
 
 void ack_received() {
-    cout << "Teste de conexao 1" << endl;
     char data[50];
-
     unsigned int size = 50;
 
     const char* str = "86:52:18:00:84:08";
@@ -19,11 +17,8 @@ void ack_received() {
         Delay (5000000);
         cout << "QEMU SEND"  << endl;
 
-        for (;;) {//int i = 0; i < 400; i++) {
-            Delay (10000);
-            memset(data, '1', size);
-            //data[size - 1] = '\n';
-
+        memset(data, '1', size);
+        for (;;) {
             if (!sos1->send(str, 8989, data, size)) {
                 break;
             }
@@ -31,7 +26,7 @@ void ack_received() {
     } else {
         cout << "QEMU RECEIVE"  << endl;
         
-        for (;;) {//(int i = 0; i < 400; i++) {
+        for (;;) {
             sos1->receive(data, size);
             cout << "APP Data: " << data << endl;
         }

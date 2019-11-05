@@ -210,13 +210,11 @@ int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, cha
 
     Pacote pacote;
     pacote.id = msg_id;
-    pacote.size = size;
-    pacote.type = 0; // Nao eh ack
     pacote.port_source = port;
     pacote.port_destination = port_dest;
     memcpy(pacote.data, data, size);
 
-    sos->send(addr, &pacote, size);
+    sos->send(addr, &pacote);
 
     Semaphore_Handler handler(semaphore);
     for (unsigned int c = 0; c < SOS::RETRIES; c++) {
@@ -232,7 +230,7 @@ int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, cha
         mutex->unlock();
 
         cout << "RETRIE " << c << " | msg_id: " << msg_id << endl;
-        sos->send(addr, &pacote, size);
+        sos->send(addr, &pacote);
     }
 
     return 0;
@@ -254,23 +252,19 @@ void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buf
     Pacote pacote;
     memcpy(&pacote, buf->frame()->data<void>(), sizeof(Pacote));
 
-    // pacote.type == 0 => nao eh um ACK
-    if (pacote.id <= msg_id && pacote.type == 0) {
+    if (pacote.id <= msg_id && pacote.type != MSG_TYPE_ACK) {
         Pacote ack;
         ack.port_destination = pacote.port_source;
         ack.port_source = pacote.port_destination;
         ack.id = pacote.id;
-        ack.size = 0;
-        ack.type = 1; // ACK
+        ack.type = MSG_TYPE_ACK;
 
         NIC_Address address;
         address = buf->frame()->src();
 
-        if (msg_id % 100 != 0) { // Forca reenvio para testar RETRIE
-            if (msg_id < 1000) { // Forca reenvios para testar TIMEOUT
-                sos->send(address, &ack, 0);
-            }
-        }
+        //if (msg_id % 100 != 0) // Forca reenvio para testar RETRIE
+            //if (msg_id < 1000) // Forca reenvios para testar TIMEOUT
+                sos->send(address, &ack);
     }
 
     if (pacote.id == msg_id) {
@@ -280,13 +274,11 @@ void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buf
         semaphore->v();
     }
 
-    // pacote.type == 1 => ACK
-    if (pacote.id != msg_id || pacote.type == 1) {
+    if (pacote.id != msg_id || pacote.type == MSG_TYPE_ACK) {
         nic->free(buf);
     }
 
-    // pacote.type == 1 => ACK
-    if (pacote.type == 1) {
+    if (pacote.type == MSG_TYPE_ACK) {
         cout << "ACK " << pacote.id << " ";
     }
 }
@@ -308,13 +300,16 @@ SOS::SOS_Communicator::~SOS_Communicator()
     delete mutex;
     delete semaphore;
 }
-void SOS::send(const NIC_Address& adress, Pacote* pacote, unsigned int size)
+void SOS::send(const NIC_Address& address, Pacote* pacote)
 {
-    nic_send(adress, pacote, size);
+    SOS::nic->send(address, protocol, pacote, sizeof(Pacote));
 }
 void SOS::receive(Pacote* pacote, unsigned int size)
 {
-    nic_receive(pacote, size);
+    NIC<Ethernet>::Protocol prot;
+    SOS::NIC_Address src;
+
+    SOS::nic->receive(&src, &prot, pacote, size);
 }
 void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot, Ethernet::Buffer * buf)
 {
@@ -325,27 +320,9 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
         nic->free(buf);
     }
 }
-void SOS::nic_send(const NIC_Address& address, Pacote* pacote, unsigned int size)
+NIC<Ethernet>::Statistics SOS::statistics()
 {
-    SOS::nic->send(address, protocol, pacote, sizeof(Pacote));
-}
-void SOS::nic_receive(Pacote* pacote, unsigned int size)
-{
-    NIC<Ethernet>::Protocol prot;
-    SOS::NIC_Address src;
-
-    SOS::nic->receive(&src, &prot, pacote, size);
-}
-void SOS::statistics()
-{
-    OStream cout;
-    NIC<Ethernet>::Statistics stat = SOS::nic->statistics();
-
-    cout << "Statistics\n"
-         << "Tx Packets: " << stat.tx_packets << "\n"
-         << "Tx Bytes:   " << stat.tx_bytes << "\n"
-         << "Rx Packets: " << stat.rx_packets << "\n"
-         << "Rx Bytes:   " << stat.rx_bytes << "\n";
+    return SOS::nic->statistics();
 }
 SOS::SOS()
 {
@@ -363,3 +340,11 @@ __END_SYS
 
 
 #endif
+
+/*
+cout << "Statistics\n"
+     << "Tx Packets: " << stat.tx_packets << "\n"
+     << "Tx Bytes:   " << stat.tx_bytes << "\n"
+     << "Rx Packets: " << stat.rx_packets << "\n"
+     << "Rx Bytes:   " << stat.rx_bytes << "\n";
+*/

@@ -426,18 +426,16 @@ public:
     static SOS* ponteiro;
 
     enum {
-        DEFAULT = 0,
-        SEND = 1,
-        RCV = 2
+        MSG_TYPE_DEFAULT = 0,
+        MSG_TYPE_ACK = 1
     };
 
     struct Pacote {
         unsigned int port_destination;
         unsigned int id;
         unsigned int port_source;
-        unsigned int size;
-        unsigned int type;
-        char data[1480]; // data[nic->mtu() - bytes do cabecalho]
+        unsigned int type = MSG_TYPE_DEFAULT;
+        char data[1484]; // data[nic->mtu() - bytes do cabecalho]
     };
 
     class SOS_Communicator: private SOS::Observer {
@@ -467,20 +465,17 @@ public:
 
     static void init();
 
-    void send(const NIC_Address& dst, Pacote* pacote, unsigned int size);
+    void send(const NIC_Address& address, Pacote* pacote);
     void receive(Pacote* pacote, unsigned int size);
     
     void attach(Observer* obs, const unsigned int& port) { _observed->attach(obs, port); }
     void detach(Observer* obs, const unsigned int& port) { _observed->detach(obs, port); }
 
-    static void statistics();
+    static NIC<Ethernet>::Statistics statistics();
     static NIC_Address nic_address() { return SOS::nic->address(); }
 
 protected:
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Ethernet::Buffer * buf);
-
-    void nic_send(const NIC_Address& dst, Pacote* pacote, unsigned int size);
-    void nic_receive(Pacote* pacote, unsigned int size);
 
 protected:
     static NIC<Ethernet> * nic;
