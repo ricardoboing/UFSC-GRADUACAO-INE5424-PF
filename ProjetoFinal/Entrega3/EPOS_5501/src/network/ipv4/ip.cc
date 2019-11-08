@@ -6,6 +6,7 @@
 #include <network/ipv4/udp.h>
 #include <network/ipv4/dhcp.h>
 #include <system.h>
+#include <time.h>
 
 #ifdef __ipv4__
 
@@ -304,6 +305,9 @@ SOS::SOS_Communicator::~SOS_Communicator()
 }
 void SOS::send(const NIC_Address& address, Pacote* pacote)
 {
+    OStream cout;
+    cout<< timer->elapsed() << " send time " <<endl;
+        
     SOS::nic->send(address, protocol, pacote, sizeof(Pacote));
 }
 void SOS::receive(Pacote* pacote, unsigned int size)
@@ -312,6 +316,8 @@ void SOS::receive(Pacote* pacote, unsigned int size)
     SOS::NIC_Address src;
 
     SOS::nic->receive(&src, &prot, pacote, size);
+    OStream cout;
+    cout<< timer->elapsed() << " receive time " <<endl;
 }
 void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot, Ethernet::Buffer * buf)
 {
@@ -326,12 +332,18 @@ NIC<Ethernet>::Statistics SOS::statistics()
 {
     return SOS::nic->statistics();
 }
+
+Alarm * SOS::timer;
 SOS::SOS()
 {
+    OStream cout;
     SOS::nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
     SOS::nic->attach(this, protocol);
 
     _observed = new Observed();
+    Function_Handler handler(time_Handler);
+    timer = new (SYSTEM) Alarm(1000, &handler, Alarm::INFINITE);
+    
 }
 SOS::~SOS()
 {

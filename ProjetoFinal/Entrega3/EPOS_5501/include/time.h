@@ -31,6 +31,7 @@ public:
 
 class Alarm
 {
+    friend class SOS; 
     friend class System;                        // for init()
     template<typename> friend class Clerk;      // for elapsed()
     friend class Alarm_Chronometer;             // for elapsed()

@@ -19,7 +19,7 @@ RTC::Date RTC::date()
         date.adjust_year(100);
 
     db<RTC>(TRC) << "RTC::date() => " << date << endl;
-
+    
     return date;
 }
 

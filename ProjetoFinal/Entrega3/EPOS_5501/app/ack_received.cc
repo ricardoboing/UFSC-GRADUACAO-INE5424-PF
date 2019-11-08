@@ -14,7 +14,7 @@ void ack_received() {
     SOS::SOS_Communicator* sos1 = new SOS::SOS_Communicator(8989);
 
     cout << SOS::nic_address() << endl;
-
+    //Delay (50000001);
     if(SOS::nic_address()[5] == 7) {
         Delay (5000000);
         cout << "QEMU SEND"  << endl;

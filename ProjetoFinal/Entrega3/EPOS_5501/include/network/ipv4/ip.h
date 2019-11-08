@@ -448,6 +448,7 @@ public:
         int receive(char data[], unsigned int size);
 
     protected:
+
         void update(Observed * obs, const unsigned int& prot, Buffer * buf);
 
     protected:
@@ -476,12 +477,13 @@ public:
     static NIC_Address nic_address() { return SOS::nic->address(); }
 
 protected:
+    static void time_Handler(){};
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Ethernet::Buffer * buf);
 
 protected:
     static NIC<Ethernet> * nic;
     Observed *_observed;
-
+    static Alarm * timer;
     unsigned short protocol = 0x8888;
 
 private:
