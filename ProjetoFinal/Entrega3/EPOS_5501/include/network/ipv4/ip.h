@@ -420,23 +420,26 @@ public:
     typedef Data_Observer<Buffer, unsigned int> Observer;
     typedef Data_Observed<Buffer, unsigned int> Observed;
 
+    typedef Alarm::Tick Tick;
+
     static const unsigned int RETRIES = Traits<SOS>::RETRIES;
     static const unsigned int TIMEOUT = Traits<SOS>::TIMEOUT*100000;
 
     static SOS* ponteiro;
-
+    
     enum {
         MSG_TYPE_DEFAULT = 0,
         MSG_TYPE_ACK = 1
     };
 
     struct Pacote {
-        unsigned int port_destination;
-        unsigned int id;
+        unsigned int port_destination = 0;
+        unsigned int id = 0;
         unsigned int size = 0;
-        unsigned int port_source;
+        unsigned int port_source = 0;
+        Tick elapsed = 0;
         unsigned int type = MSG_TYPE_DEFAULT;
-        char data[1480]; // data[nic->mtu() - bytes do cabecalho]
+        char data[1000];//1480]; // data[nic->mtu() - bytes do cabecalho]
     };
 
     class SOS_Communicator: private SOS::Observer {
@@ -448,7 +451,6 @@ public:
         int receive(char data[], unsigned int size);
 
     protected:
-
         void update(Observed * obs, const unsigned int& prot, Buffer * buf);
 
     protected:
@@ -477,7 +479,7 @@ public:
     static NIC_Address nic_address() { return SOS::nic->address(); }
 
 protected:
-    static void time_Handler(){};
+    static void time_Handler() {}
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Ethernet::Buffer * buf);
 
 protected:
@@ -485,6 +487,12 @@ protected:
     Observed *_observed;
     static Alarm * timer;
     unsigned short protocol = 0x8888;
+
+    static Tick tick1;
+    static Tick tick2;
+    static Tick tick3;
+    static Tick ultimo_elapsed;
+    static Tick tick_send;
 
 private:
     bool notify(const unsigned int& port, Buffer *buf) { return _observed->notify(port, buf); }

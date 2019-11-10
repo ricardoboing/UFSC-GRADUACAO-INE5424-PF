@@ -21,6 +21,7 @@ void ack_received() {
 
         memset(data, '1', size);
         for (;;) {
+            Delay (1000000);
             if (!sos1->send(str, 8989, data, size)) {
                 break;
             }
@@ -31,7 +32,7 @@ void ack_received() {
         
         for (;;) {
             sos1->receive(data, size);
-            cout << "APP Data: " << data << endl;
+            //cout << "APP Data: " << data << endl;
         }
     }
     if (SOS::nic_address()[5] == 9) {

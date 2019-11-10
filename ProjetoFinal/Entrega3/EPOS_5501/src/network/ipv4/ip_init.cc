@@ -46,7 +46,12 @@ void IP::init(unsigned int unit)
     SOS::init();
 }
 void SOS::init() {
-    SOS::ponteiro = new (SYSTEM) SOS();
+    ponteiro = new (SYSTEM) SOS();
+    tick1 = 0;
+    tick2 = 0;
+    tick3 = 0;
+    tick_send = 0;
+    ultimo_elapsed = 0;
 }
 
 __END_SYS

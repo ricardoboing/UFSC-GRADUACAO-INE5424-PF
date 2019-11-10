@@ -23,6 +23,12 @@ IP::Observed IP::_observed;
 
 SOS* SOS::ponteiro;
 NIC<Ethernet>* SOS::nic;
+Alarm * SOS::timer;
+SOS::Tick SOS::tick1;
+SOS::Tick SOS::tick2;
+SOS::Tick SOS::tick3;
+SOS::Tick SOS::ultimo_elapsed;
+SOS::Tick SOS::tick_send;
 
 // Methods
 void IP::config_by_info()
@@ -249,8 +255,6 @@ int SOS::SOS_Communicator::receive(char data[], unsigned int size)
 }
 void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buffer * buf)
 {
-    OStream cout;
-
     Pacote pacote;
     memcpy(&pacote, buf->frame()->data<void>(), sizeof(Pacote));
 
@@ -262,12 +266,8 @@ void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buf
         pacote_ack.size = pacote.size;
         pacote_ack.type = MSG_TYPE_ACK;
 
-        NIC_Address address;
-        address = buf->frame()->src();
-
-        //if (msg_id % 100 != 0) // Forca reenvio para testar RETRIE
-            //if (msg_id < 1000) // Forca reenvios para testar TIMEOUT
-                sos->send(address, &pacote_ack);
+        NIC_Address address = buf->frame()->src();
+        sos->send(address, &pacote_ack);
     }
 
     if (pacote.id == msg_id) {
@@ -279,10 +279,6 @@ void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buf
 
     if (pacote.id != msg_id || pacote.type == MSG_TYPE_ACK) {
         nic->free(buf);
-    }
-
-    if (pacote.type == MSG_TYPE_ACK) {
-        cout << "ACK " << pacote.id << " ";
     }
 }
 SOS::SOS_Communicator::SOS_Communicator(unsigned int porta)
@@ -304,11 +300,12 @@ SOS::SOS_Communicator::~SOS_Communicator()
     delete semaphore;
 }
 void SOS::send(const NIC_Address& address, Pacote* pacote)
-{
-    OStream cout;
-    cout<< timer->elapsed() << " send time " <<endl;
-        
+{   
+    pacote->elapsed = tick_send;
+    
     SOS::nic->send(address, protocol, pacote, sizeof(Pacote));
+
+    tick_send = timer->_elapsed;
 }
 void SOS::receive(Pacote* pacote, unsigned int size)
 {
@@ -316,49 +313,72 @@ void SOS::receive(Pacote* pacote, unsigned int size)
     SOS::NIC_Address src;
 
     SOS::nic->receive(&src, &prot, pacote, size);
-    OStream cout;
-    cout<< timer->elapsed() << " receive time " <<endl;
 }
 void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & prot, Ethernet::Buffer * buf)
 {
-    unsigned int port_dest;
-    memcpy(&port_dest, buf->frame()->data<void>(), sizeof(unsigned int));
+    OStream cout;
 
-    if (!notify(port_dest, buf)) {
+    Pacote pacote;
+    memcpy(&pacote, buf->frame()->data<void>(), sizeof(Pacote));
+
+    NIC_Address address = buf->frame()->src();
+    Tick server_elapsed = pacote.elapsed;
+
+    if (address[5] == 8) { // Endereco do servidor
+        if (server_elapsed - ultimo_elapsed < 2000000) { // Intervalo aceitavel
+            if (tick2 == 0) {
+                tick2 = timer->elapsed();
+            } else if (tick1 == 0) {
+                tick1 = server_elapsed;
+            } else if (tick3 == 0) {
+                tick3 = timer->elapsed();
+            } else {
+                Tick tick4 = server_elapsed;
+
+                cout << "Clock_velho: " << timer->elapsed();
+
+                Tick pd = ((tick2 - tick1) + (tick4 - tick3)) / 2;
+                Tick offset = (tick2 - tick1) - pd;
+                timer->_elapsed = timer->elapsed() - offset;
+
+                cout << " | Clock_novo: " << timer->elapsed() << endl;
+
+                tick1 = 0;
+                tick2 = 0;
+                tick3 = 0;
+            }
+        } else {
+            tick1 = 0;
+            tick2 = 0;
+            tick3 = 0;
+        }
+
+        ultimo_elapsed = server_elapsed;
+    } else {
+        cout << "Clock: " << timer->elapsed() << endl;
+    }
+
+    if (!notify(pacote.port_destination, buf)) {
         nic->free(buf);
     }
 }
-NIC<Ethernet>::Statistics SOS::statistics()
-{
-    return SOS::nic->statistics();
-}
-
-Alarm * SOS::timer;
 SOS::SOS()
 {
-    OStream cout;
     SOS::nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
     SOS::nic->attach(this, protocol);
 
     _observed = new Observed();
+
     Function_Handler handler(time_Handler);
     timer = new (SYSTEM) Alarm(1000, &handler, Alarm::INFINITE);
-    
 }
 SOS::~SOS()
 {
     SOS::nic->detach(this, protocol);
+    delete timer;
+    delete _observed;
 }
 
 __END_SYS
 
-
 #endif
-
-/*
-cout << "Statistics\n"
-     << "Tx Packets: " << stat.tx_packets << "\n"
-     << "Tx Bytes:   " << stat.tx_bytes << "\n"
-     << "Rx Packets: " << stat.rx_packets << "\n"
-     << "Rx Bytes:   " << stat.rx_bytes << "\n";
-*/
