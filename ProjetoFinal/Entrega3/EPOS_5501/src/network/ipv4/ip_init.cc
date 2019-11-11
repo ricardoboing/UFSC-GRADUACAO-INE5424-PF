@@ -50,7 +50,6 @@ void SOS::init() {
     tick1 = 0;
     tick2 = 0;
     tick3 = 0;
-    tick_send = 0;
     ultimo_elapsed = 0;
 }
 

@@ -24,9 +24,6 @@ Alarm::Alarm(const Microsecond & time, Handler * handler, unsigned int times)
 
     db<Alarm>(TRC) << "Alarm(t=" << time << ",tk=" << _ticks << ",h=" << reinterpret_cast<void *>(handler) << ",x=" << times << ") => " << this << endl;
     
-    //OStream cout;
-    //cout << "Alarm(t=" << time << ",tk=" << _ticks << ",h=" << reinterpret_cast<void *>(handler) << ",x=" << times << ") => " << this << endl;
-    
     if(_ticks) {
         _request.insert(&_link);
         unlock();

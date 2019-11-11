@@ -374,7 +374,9 @@ void PCNet32::handle_int()
 void PCNet32::int_handler(const IC::Interrupt_Id & interrupt)
 {
     PCNet32 * dev = get_by_interrupt(interrupt);
-
+    using namespace EPOS;
+    OStream cout;
+    //cout << "PCNet32::int_handler" << endl;
     db<PCNet32>(TRC) << "PCNet32::int_handler(int=" << interrupt << ",dev=" << dev << ")" << endl;
 
     if(!dev)

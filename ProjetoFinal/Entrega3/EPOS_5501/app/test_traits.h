@@ -54,7 +54,6 @@ template<> struct Traits<Build>: public Traits<void>
     static const unsigned int EXPECTED_SIMULATION_TIME = 60; // s (0 => not simulated)
 };
 
-
 // Utilities
 template<> struct Traits<Debug>: public Traits<void>
 {
@@ -222,7 +221,7 @@ template<> struct Traits<SOS>: public Traits<void>
 {
     static const bool enabled = (Traits<Build>::NODES > 1);
 
-    static const unsigned int RETRIES = 20;
+    static const unsigned int RETRIES = 10;
     static const unsigned int TIMEOUT = 5; // s
 };
 template<> struct Traits<TSTP>: public Traits<Network>

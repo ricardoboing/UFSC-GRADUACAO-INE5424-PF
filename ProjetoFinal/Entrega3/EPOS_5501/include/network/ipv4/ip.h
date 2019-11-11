@@ -422,11 +422,15 @@ public:
 
     typedef Alarm::Tick Tick;
 
+    template<typename T>
+    using Doubly_Linked = List_Elements::Doubly_Linked<T>;
+
+    static SOS* ponteiro;
+
+protected:
     static const unsigned int RETRIES = Traits<SOS>::RETRIES;
     static const unsigned int TIMEOUT = Traits<SOS>::TIMEOUT*100000;
 
-    static SOS* ponteiro;
-    
     enum {
         MSG_TYPE_DEFAULT = 0,
         MSG_TYPE_ACK = 1
@@ -439,9 +443,10 @@ public:
         unsigned int port_source = 0;
         Tick elapsed = 0;
         unsigned int type = MSG_TYPE_DEFAULT;
-        char data[1000];//1480]; // data[nic->mtu() - bytes do cabecalho]
+        char data[1000];
     };
 
+public:
     class SOS_Communicator: private SOS::Observer {
     public:
         SOS_Communicator(unsigned int porta);
@@ -451,9 +456,6 @@ public:
         int receive(char data[], unsigned int size);
 
     protected:
-        void update(Observed * obs, const unsigned int& prot, Buffer * buf);
-
-    protected:
         SOS* sos;
 
         Semaphore* semaphore;
@@ -461,38 +463,43 @@ public:
 
         unsigned int port;
         unsigned int msg_id;
+
+        struct Cliente {
+            NIC_Address address;
+            unsigned int id = 0;
+        };
+
+        List<Cliente>* clientes;
+        List<Pacote>* pacotes;
+
+        Cliente* client(NIC_Address& address);
+
+        void update(Observed * obs, const unsigned int& prot, Buffer * buf);
     };
 
-public:
     SOS();
     ~SOS();
 
     static void init();
 
     void send(const NIC_Address& address, Pacote* pacote);
-    void receive(Pacote* pacote, unsigned int size);
     
     void attach(Observer* obs, const unsigned int& port) { _observed->attach(obs, port); }
     void detach(Observer* obs, const unsigned int& port) { _observed->detach(obs, port); }
 
-    static NIC<Ethernet>::Statistics statistics();
     static NIC_Address nic_address() { return SOS::nic->address(); }
-
-protected:
-    static void time_Handler() {}
-    void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Ethernet::Buffer * buf);
 
 protected:
     static NIC<Ethernet> * nic;
     Observed *_observed;
-    static Alarm * timer;
     unsigned short protocol = 0x8888;
 
     static Tick tick1;
     static Tick tick2;
     static Tick tick3;
     static Tick ultimo_elapsed;
-    static Tick tick_send;
+
+    void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Ethernet::Buffer * buf);
 
 private:
     bool notify(const unsigned int& port, Buffer *buf) { return _observed->notify(port, buf); }
