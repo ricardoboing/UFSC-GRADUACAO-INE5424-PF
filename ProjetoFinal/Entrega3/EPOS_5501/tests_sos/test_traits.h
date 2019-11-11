@@ -215,11 +215,11 @@ template<> struct Traits<Network>: public Traits<void>
     static const unsigned int RETRIES = 3;
     static const unsigned int TIMEOUT = 10; // s
 
-    typedef LIST<IP> NETWORKS;
+    typedef LIST<SOS> NETWORKS;
 };
-template<> struct Traits<SOS>: public Traits<void>
+template<> struct Traits<SOS>: public Traits<Network>
 {
-    static const bool enabled = (Traits<Build>::NODES > 1);
+    static const bool enabled = NETWORKS::Count<SOS>::Result;
 
     static const unsigned int RETRIES = 10;
     static const unsigned int TIMEOUT = 5; // s

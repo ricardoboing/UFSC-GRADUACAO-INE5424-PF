@@ -19,7 +19,7 @@ void ack_received() {
 
         memset(data, '1', size);
         for (;;) {
-            Delay (1000000);
+            Delay (5000000);
             if (!sos1->send(str, 8989, data, size)) {
                 break;
             }
