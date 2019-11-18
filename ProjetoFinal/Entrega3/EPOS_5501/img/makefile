@@ -81,7 +81,7 @@ ifeq ($(NODES),1)
 		timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(IMAGE) | $(TEE) $(OUTPUT)
 else
 ifeq ($(NODES),2)
-		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(IMAGE) $(NETWORK) | $(TEE) $(OUTPUT) \
+		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR_SERIAL)$(IMAGE) $(NETWORK) | $(TEE) $(OUTPUT) \
 		&& $(TCPDUMP) $(APPLICATION).pcap > $(APPLICATION).net \
 		&& read -p 'Press [Enter] key to close ...'" &
 		sleep 2
@@ -89,7 +89,7 @@ ifeq ($(NODES),2)
 		&& $(TCPDUMP) $(PEER).pcap > $(PEER).net \
 		&& read -p 'Press [Enter] key to close ...'" &
 else
-		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR)$(IMAGE) $(NETWORK) | $(TEE) $(OUTPUT) \
+		$(TERM) "timeout --foreground --kill-after=2s --signal=9 $(STIME)s $(EMULATOR_SERIAL)$(IMAGE) $(NETWORK) | $(TEE) $(OUTPUT) \
 		&& $(TCPDUMP) $(APPLICATION).pcap > $(APPLICATION).net \
 		&& read -p 'Press [Enter] key to close ...'" &
 		sleep 2
