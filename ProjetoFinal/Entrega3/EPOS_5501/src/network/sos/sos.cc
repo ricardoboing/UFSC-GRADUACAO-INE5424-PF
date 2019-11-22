@@ -52,7 +52,7 @@ char* GPS_Driver::get_data_from_serial(){
     OStream cout;
     char init[1000];
     char* msg = &init[0];
-    uart->put(48);
+    uart->put(count + 48);
     int c = uart->get();
     int len=0;
     while(c != eof ){
