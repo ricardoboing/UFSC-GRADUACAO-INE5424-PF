@@ -4,6 +4,7 @@
 #include <network/sos/sos.h>
 #include <system.h>
 #include <time.h>
+#include <utility/geometry.h>
 
 #ifdef __sos__
 
@@ -17,6 +18,51 @@ SOS::Tick SOS::tick1;
 SOS::Tick SOS::tick2;
 SOS::Tick SOS::tick3;
 SOS::Tick SOS::ultimo_elapsed;
+
+GPS_Driver::GPS_Driver(){
+    uart = new UART(1, 115200, 8, 0, 1);
+    uart->loopback(false);
+    count = 0;
+}
+GPS_Driver::~GPS_Driver(){
+    delete uart;
+
+}
+
+Point<int,3> GPS_Driver::get_coord(){
+    
+    char* gpgga = get_data_from_serial();
+    OStream cout;
+    cout<< gpgga << " serial "<<endl;
+    int a = 100, b = 100, c = 0;
+    if(count==1){
+        a=0;
+        b=0;
+    }
+    if(count==2){
+        a=0;
+        count = -1;
+    }
+    count++;
+    return Point<int,3>(a,b,c);
+
+}
+
+char* GPS_Driver::get_data_from_serial(){
+    OStream cout;
+    char init[1000];
+    char* msg = &init[0];
+    uart->put(48);
+    int c = uart->get();
+    int len=0;
+    while(c != eof ){
+        init[len] = (char) c;
+        len++;
+        c = uart->get();
+    }
+    return msg;
+}
+
 
 int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, char data[], unsigned int size)
 {
@@ -157,7 +203,26 @@ SOS::SOS_Communicator::Cliente* SOS::SOS_Communicator::client(NIC_Address& addre
 void SOS::send(const NIC_Address& address, Pacote* pacote)
 {   
     pacote->elapsed = Alarm::elapsed();
-    
+    OStream cout;
+    //cout << position <<" pos init"<<endl;
+
+    if (nic_address()[5] == 8) {
+        position = gps->get_coord();
+        valid_position = true;
+    }
+    unsigned int port_temp = pacote->port_destination;
+    while(!valid_position){
+        pacote->port_destination = 0;
+        SOS::NIC_Address addr("86:52:18:00:84:08");
+        SOS::nic->send(addr, protocol, pacote, sizeof(Pacote));
+        Delay (5000);
+        
+    }
+    pacote->port_destination = port_temp;
+    pacote->coordinates = position;
+    pacote->valid_position = valid_position;
+
+    cout << pacote->coordinates << " position package snd"<<endl;
     SOS::nic->send(address, protocol, pacote, sizeof(Pacote));
 
     if (tick2 != 0 && tick3 == 0) {
@@ -171,8 +236,12 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
     Pacote pacote;
     memcpy(&pacote, buf->frame()->data<void>(), sizeof(Pacote));
 
-    NIC_Address address = buf->frame()->src();
 
+    NIC_Address address = buf->frame()->src();
+    if (nic_address()[5] == 8 && !pacote.valid_position) {
+        send( address, &pacote);
+    }
+    cout << pacote.coordinates << " position package rcv"<<endl;
     if (address[5] == 8) { // Endereco do servidor
         if (pacote.elapsed - ultimo_elapsed < 2000000) { // Intervalo aceitavel
             if (tick2 == 0) {
@@ -181,14 +250,14 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
             } else if (tick3 != 0) {
                 Tick tick4 = pacote.elapsed;
 
-                cout << "Clock_velho: " << Alarm::elapsed();
+                //cout << "Clock_velho: " << Alarm::elapsed();
 
                 Tick pd = ((tick2 - tick1) + (tick4 - tick3)) / 2;
                 Tick offset = (tick2 - tick1) - pd;
 
                 Alarm::_elapsed = Alarm::elapsed() - offset;
                 
-                cout << " | Clock_novo: " << Alarm::elapsed() << endl;
+                //cout << " | Clock_novo: " << Alarm::elapsed() << endl;
 
                 tick1 = 0;
                 tick2 = 0;
@@ -201,9 +270,42 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
         }
 
         ultimo_elapsed = pacote.elapsed;
+
+        if(!anchor1.valid_position){
+            
+            anchor1.position = pacote.coordinates;
+            anchor1.valid_position = true;
+            anchor1.distance = spected_position - pacote.coordinates;
+
+        }else if(!anchor2.valid_position ){
+            if(anchor1.position != pacote.coordinates){
+                anchor2.position = pacote.coordinates;
+                anchor2.valid_position = true;
+                anchor2.distance = spected_position - pacote.coordinates;
+            }
+
+        }else{
+            if(anchor1.position != pacote.coordinates && anchor2.position != pacote.coordinates){
+                anchor3.position = pacote.coordinates;
+                anchor3.valid_position = true;
+                anchor3.distance = spected_position - pacote.coordinates;
+
+                position = position.trilaterate(anchor1.position, anchor1.distance, anchor2.position, anchor2.distance, anchor3.position, anchor3.distance);
+                valid_position = true;
+                anchor1.valid_position = false;
+                anchor2.valid_position = false;
+                anchor3.valid_position = false;
+                cout <<"esperada " << spected_position << ", position "<< position << endl;
+            }
+
+        }
+           
+
     } else {
-        cout << "Clock: " << Alarm::elapsed() << endl;
+        //cout << "Clock: " << Alarm::elapsed() << endl;
     }
+
+    //cout << pacote.coordinates<< endl;
 
     if (!notify(pacote.port_destination, buf)) {
         nic->free(buf);
@@ -213,7 +315,11 @@ SOS::SOS()
 {
     SOS::nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
     SOS::nic->attach(this, protocol);
-
+    valid_position = false;
+    if (nic_address()[5] == 8) {
+        gps = new GPS_Driver();
+    }
+    spected_position = Point<int,3>(100,90,0);
     _observed = new Observed();
 }
 SOS::~SOS()
@@ -221,6 +327,12 @@ SOS::~SOS()
     SOS::nic->detach(this, protocol);
     delete _observed;
 }
+
+
+
+
+        
+
 
 __END_SYS
 

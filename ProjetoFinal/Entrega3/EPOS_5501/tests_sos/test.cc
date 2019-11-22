@@ -31,7 +31,7 @@ void ack_received() {
         for (;;) {
             //Delay (5000000);
             sos1->receive(data, size);
-            //cout << "APP Data: " << data << endl;
+            cout << "APP Data: " << data << endl;
         }
     }
 }
@@ -39,4 +39,5 @@ void ack_received() {
 int main()
 {   
     ack_received();
+    Delay (5000000);
 }

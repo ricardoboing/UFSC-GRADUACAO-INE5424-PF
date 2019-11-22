@@ -12,8 +12,24 @@
 #include <process.h>
 #include <time.h>
 #include <synchronizer.h>
+#include <machine/uart.h>
+#include <utility/geometry.h>
 
 __BEGIN_SYS
+class GPS_Driver{
+protected:
+    UART * uart;
+    const int eof = 37; // ascii for "%"
+    int count;
+public:
+    GPS_Driver();
+    ~GPS_Driver();
+    Point<int,3> get_coord();
+protected:
+    char* get_data_from_serial();
+
+};
+
 
 class SOS: private NIC<Ethernet>::Observer {
 public:
@@ -24,7 +40,7 @@ public:
     typedef Data_Observed<Buffer, unsigned int> Observed;
 
     typedef Alarm::Tick Tick;
-
+    
     template<typename T>
     using Doubly_Linked = List_Elements::Doubly_Linked<T>;
 
@@ -45,8 +61,16 @@ protected:
         unsigned int size = 0;
         unsigned int port_source = 0;
         Tick elapsed = 0;
+        Point<int, 3> coordinates;
+        bool valid_position = false;
         unsigned int type = MSG_TYPE_DEFAULT;
         char data[1000];
+    };
+    struct Ancora{
+        bool valid_position = false;
+        Point<int, 3> position;
+        int distance = 0;
+
     };
 
 public:
@@ -101,6 +125,14 @@ protected:
     static Tick tick2;
     static Tick tick3;
     static Tick ultimo_elapsed;
+    GPS_Driver * gps;
+    bool valid_position;
+    Point<int, 3> position;
+
+    Ancora anchor1;
+    Ancora anchor2;
+    Ancora anchor3;
+    Point<int, 3> spected_position;
 
     void update(Ethernet::Observed * obs, const Ethernet::Protocol & prot, Ethernet::Buffer * buf);
 
@@ -108,6 +140,8 @@ private:
     bool notify(const unsigned int& port, Buffer *buf) { return _observed->notify(port, buf); }
 
 };
+
+
 
 __END_SYS
 
