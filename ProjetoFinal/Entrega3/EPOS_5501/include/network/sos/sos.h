@@ -20,6 +20,8 @@ class GPS_Driver{
 protected:
     UART * uart;
     const int eof = 37; // ascii for "%"
+    const double a = 6378137.0; // WGS-84 semi-major axis
+    const double e2 = 6.6943799901377997e-3; // WGS-84 first eccentricity squared
     int count;
 public:
     GPS_Driver();
@@ -27,6 +29,7 @@ public:
     Point<int,3> get_coord();
 protected:
     char* get_data_from_serial();
+    float str_to_float(char* str);
 
 };
 

@@ -5,6 +5,7 @@
 #include <system.h>
 #include <time.h>
 #include <utility/geometry.h>
+#include <utility/math.h>
 
 #ifdef __sos__
 
@@ -34,6 +35,67 @@ Point<int,3> GPS_Driver::get_coord(){
     char* gpgga = get_data_from_serial();
     OStream cout;
     cout<< gpgga << " serial "<<endl;
+    //"$GPGGA,134658.00,0,N,0.785398,E,2,09,1.0,-6377995.6,M,-16.27,M,08,AAAA*60"
+    
+    int position = 0;
+    float latitude = 0;
+    float longitude = 0;
+    float altitude = 0;
+    char* temp_str = new char[50];
+    int temp_position = 0;
+    
+    for(unsigned int i = 0; i<strlen(gpgga); i++){
+        if(gpgga[i] == ','){
+            position++;
+            continue;
+        }
+
+        if(position == 2){
+            temp_str[temp_position] = gpgga[i];
+            temp_position++;
+            
+
+        } else if(position == 3){
+            latitude = str_to_float(temp_str);
+            if(gpgga[i] == 'S'){
+                latitude *= -1;
+            }
+            temp_str = new char[50];
+            temp_position = 0;
+
+        } else if(position == 4){
+                temp_str[temp_position] = gpgga[i];
+                temp_position++;
+        
+        } else if(position == 5){
+            longitude = str_to_float(temp_str);
+            if(gpgga[i] == 'W'){
+                longitude *= -1;
+            }
+            temp_str = new char[50];
+            temp_position = 0;
+
+        } else if(position == 9){
+            temp_str[temp_position] = gpgga[i];
+            temp_position++; 
+
+        } else if(position == 10){
+            if(gpgga[i] == 'M'){
+                altitude = str_to_float(temp_str);
+            }
+            break;
+        }
+    }
+    cout << "latitude " << latitude << endl 
+    << "longitude "<< longitude <<endl 
+    << "altitude "<< altitude <<endl;
+
+    //float n = a / sqrt(1 - e2 * sin(latitude) * sin(latitude));
+    //float x = (n + altitude) * cos(latitude) * cos(longitude);
+    //float y = (n + altitude) * cos(latitude) * sin(longitude);
+    //float z = (n * (1 - e2) + altitude) * sin(latitude);
+
+    //cout << "(" <<x<<","<<y<<","<<z<<")"<< endl;
     int a = 100, b = 100, c = 0;
     if(count==1){
         a=0;
@@ -61,6 +123,35 @@ char* GPS_Driver::get_data_from_serial(){
         c = uart->get();
     }
     return msg;
+}
+
+float GPS_Driver::str_to_float(char* p){
+    // here i took another two   variables for counting the number of digits in mantissa
+  int i, num = 0, num2 = 0, pnt_seen = 0, x = 0, y = 1 , signal = 1,init = 0; 
+  float f2, f3;
+  if(p[0] == '-'){
+    signal = -1;
+    init = 1;
+  }
+  for (i = 0; p[i]; i++)
+    if (p[i] == '.') {
+      pnt_seen = i;
+      break;
+    }
+  for (i = init; p[i]; i++) {
+    if (i < pnt_seen) num = num * 10 + (p[i] - 48);
+    else if (i == pnt_seen) continue;
+    else {
+      num2 = num2 * 10 + (p[i] - 48);
+      ++x;
+    }
+  }
+  // it takes 10 if it has 1 digit ,100 if it has 2 digits in mantissa
+  for (i = 1; i <= x; i++) 
+    y = y * 10;
+  f2 = num2 / (float) y;
+  f3 = num + f2;
+  return f3*signal;
 }
 
 
