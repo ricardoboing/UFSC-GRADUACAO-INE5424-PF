@@ -20,8 +20,8 @@ class GPS_Driver{
 protected:
     UART * uart;
     const int eof = 37; // ascii for "%"
-    const double a = 6378137.0; // WGS-84 semi-major axis
-    const double e2 = 6.6943799901377997e-3; // WGS-84 first eccentricity squared
+    const float a = 6378137.0; // WGS-84 semi-major axis
+    const float e2 = 6.6943799901377997e-3; // WGS-84 first eccentricity squared
     int count;
 public:
     GPS_Driver();
@@ -30,6 +30,8 @@ public:
 protected:
     char* get_data_from_serial();
     float str_to_float(char* str);
+    float factorial(int x);
+    float sin(float radians); 
 
 };
 

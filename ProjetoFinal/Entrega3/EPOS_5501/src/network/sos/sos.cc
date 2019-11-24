@@ -91,6 +91,7 @@ Point<int,3> GPS_Driver::get_coord(){
     << "altitude "<< altitude <<endl;
 
     //float n = a / sqrt(1 - e2 * sin(latitude) * sin(latitude));
+    //cout << sin(latitude)<< "sin"<<endl;
     //float x = (n + altitude) * cos(latitude) * cos(longitude);
     //float y = (n + altitude) * cos(latitude) * sin(longitude);
     //float z = (n * (1 - e2) + altitude) * sin(latitude);
@@ -152,6 +153,30 @@ float GPS_Driver::str_to_float(char* p){
   f2 = num2 / (float) y;
   f3 = num + f2;
   return f3*signal;
+}
+
+float GPS_Driver::factorial(int x)  
+{
+    float fact = 1;
+    for(; x >= 1 ; x--)
+    {
+        fact = x * fact;
+    }
+    return fact;
+}
+
+float GPS_Driver::sin(float radians)  //value of sine by Taylors series
+{
+   float a,b,c;
+   float result = 0;
+   for(int y=0 ; y < 9 ; y++)
+   {
+      a=  pow(-1,y);
+      b=  pow(radians,(2*y)+1);
+      c=  factorial((2*y)+1);
+      result = result+ (a*b)/c;
+   }
+   return result;
 }
 
 
