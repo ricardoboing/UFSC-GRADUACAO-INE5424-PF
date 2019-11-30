@@ -71,11 +71,10 @@ protected:
         unsigned int type = MSG_TYPE_DEFAULT;
         char data[1000];
     };
-    struct Ancora{
+    struct Ancora {
         bool valid_position = false;
         Point<int, 3> position;
         int distance = 0;
-
     };
 
 public:
@@ -90,9 +89,10 @@ public:
     protected:
         SOS* sos;
 
-        Semaphore* semaphore;
-        Mutex* mutex;
-
+        Mutex* mutex_send;
+        Semaphore* semaphore_send;
+        Semaphore* semaphore_receive;
+        
         unsigned int port;
         unsigned int msg_id;
 
@@ -102,7 +102,8 @@ public:
         };
 
         List<Cliente>* clientes;
-        List<Pacote>* pacotes;
+        List<Pacote>* pacotes_receive;
+        List<Pacote>* pacotes_not_ack;
 
         Cliente* client(NIC_Address& address);
 
@@ -130,6 +131,7 @@ protected:
     static Tick tick2;
     static Tick tick3;
     static Tick ultimo_elapsed;
+    
     GPS_Driver * gps;
     bool valid_position;
     Point<int, 3> position;
@@ -145,8 +147,6 @@ private:
     bool notify(const unsigned int& port, Buffer *buf) { return _observed->notify(port, buf); }
 
 };
-
-
 
 __END_SYS
 

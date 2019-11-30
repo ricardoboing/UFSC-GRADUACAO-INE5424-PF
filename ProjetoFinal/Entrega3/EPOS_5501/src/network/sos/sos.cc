@@ -186,39 +186,41 @@ int SOS::SOS_Communicator::send(const char* address, unsigned int port_dest, cha
 
     SOS::NIC_Address addr(address);
 
-    Pacote pacote;
-    pacote.id = msg_id;
-    pacote.size = size;
-    pacote.port_source = port;
-    pacote.port_destination = port_dest;
-    memcpy(pacote.data, data, size);
+    Pacote* pacote = new Pacote();
+    pacote->id = msg_id;
+    pacote->size = size;
+    pacote->port_source = port;
+    pacote->port_destination = port_dest;
+    memcpy(pacote->data, data, size);
 
-    sos->send(addr, &pacote);
+    pacotes_not_ack->insert( new Doubly_Linked<Pacote>(pacote) );
 
-    Semaphore_Handler handler(semaphore);
+    sos->send(addr, pacote);
+
+    Semaphore_Handler handler(semaphore_send);
     for (unsigned int c = 0; c < SOS::RETRIES; c++) {
         Alarm alarm(SOS::TIMEOUT, &handler);
         
-        semaphore->p();
+        semaphore_send->p();
 
-        mutex->lock();
-        if (msg_id != pacote.id) {
-            mutex->unlock();
+        mutex_send->lock();
+        if (msg_id != pacote->id) {
+            mutex_send->unlock();
             return 1;
         }
-        mutex->unlock();
+        mutex_send->unlock();
 
         cout << "RETRIE " << c << " | msg_id: " << msg_id << endl;
-        sos->send(addr, &pacote);
+        sos->send(addr, pacote);
     }
 
     return 0;
 }
 int SOS::SOS_Communicator::receive(char data[], unsigned int size)
 {
-    semaphore->p();
+    semaphore_receive->p();
 
-    Doubly_Linked<Pacote>* link = pacotes->remove_head();
+    Doubly_Linked<Pacote>* link = pacotes_receive->remove_head();
     Pacote* pacote = link->object();
 
     memcpy(data, pacote->data, size);
@@ -230,20 +232,26 @@ int SOS::SOS_Communicator::receive(char data[], unsigned int size)
 }
 void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buffer * buf)
 {
-    OStream cout;
-    
     Pacote* pacote = new Pacote();
     memcpy(pacote, buf->frame()->data<void>(), sizeof(Pacote));
 
     if (pacote->type == MSG_TYPE_ACK) { // SEND
         if (pacote->id == msg_id) {
-            mutex->lock();
+            mutex_send->lock();
             msg_id++;
-            mutex->unlock();
-            semaphore->v();
-        }
+            mutex_send->unlock();
+            semaphore_send->v();
 
-        //cout << "ACK " << pacote->id << " ";
+            if (!pacotes_not_ack->empty()) {
+                for (Doubly_Linked<Pacote>* next = pacotes_not_ack->head(); next != 0; next = next->next()) {
+                    if (next->object()->id == pacote->id) {
+                        pacotes_not_ack->remove(next);
+                        delete next;
+                        break;
+                    }
+                }
+            }
+        }
     } else { // RECEIVE
         NIC_Address address = buf->frame()->src();
 
@@ -260,13 +268,11 @@ void SOS::SOS_Communicator::update(Observed * obs, const unsigned int& prot, Buf
             sos->send(address, &pacote_ack);
         }
 
-        //cout << "Pacote.id: " << pacote->id << " | Cliente->id: " << cliente->id << endl;
-
         if (pacote->id == cliente->id) {
             cliente->id++;
 
-            pacotes->insert( new Doubly_Linked<Pacote>(pacote) );
-            semaphore->v();
+            pacotes_receive->insert( new Doubly_Linked<Pacote>(pacote) );
+            semaphore_receive->v();
         }
     }
 
@@ -278,11 +284,13 @@ SOS::SOS_Communicator::SOS_Communicator(unsigned int porta)
     port = porta;
 
     sos = SOS::ponteiro;
-    mutex = new Mutex();
-    semaphore = new Semaphore(0);
+    mutex_send = new Mutex();
+    semaphore_send = new Semaphore(0);
+    semaphore_receive = new Semaphore(0);
 
     clientes = new List<Cliente>();
-    pacotes = new List<Pacote>();
+    pacotes_receive = new List<Pacote>();
+    pacotes_not_ack = new List<Pacote>();
 
     sos->attach(this, port);
 }
@@ -290,8 +298,9 @@ SOS::SOS_Communicator::~SOS_Communicator()
 {
     sos->detach(this, port);
     
-    delete mutex;
-    delete semaphore;
+    delete mutex_send;
+    delete semaphore_send;
+    delete semaphore_receive;
 }
 SOS::SOS_Communicator::Cliente* SOS::SOS_Communicator::client(NIC_Address& address) {
     Cliente* cliente = 0;
@@ -318,27 +327,28 @@ SOS::SOS_Communicator::Cliente* SOS::SOS_Communicator::client(NIC_Address& addre
 }
 void SOS::send(const NIC_Address& address, Pacote* pacote)
 {   
-    pacote->elapsed = Alarm::elapsed();
     OStream cout;
-    //cout << position <<" pos init"<<endl;
+    
+    pacote->elapsed = Alarm::elapsed();
 
     if (nic_address()[5] == 8) {
         position = gps->get_coord();
         valid_position = true;
     }
+
     unsigned int port_temp = pacote->port_destination;
-    while(!valid_position){
+    while(!valid_position) {
         pacote->port_destination = 0;
         SOS::NIC_Address addr("86:52:18:00:84:08");
         SOS::nic->send(addr, protocol, pacote, sizeof(Pacote));
         Delay (5000);
-        
     }
+    
     pacote->port_destination = port_temp;
     pacote->coordinates = position;
     pacote->valid_position = valid_position;
 
-    cout << pacote->coordinates << " position package snd"<<endl;
+    cout << pacote->coordinates << " position package snd" << endl;
     SOS::nic->send(address, protocol, pacote, sizeof(Pacote));
 
     if (tick2 != 0 && tick3 == 0) {
@@ -352,12 +362,12 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
     Pacote pacote;
     memcpy(&pacote, buf->frame()->data<void>(), sizeof(Pacote));
 
-
     NIC_Address address = buf->frame()->src();
     if (nic_address()[5] == 8 && !pacote.valid_position) {
-        send( address, &pacote);
+        send(address, &pacote);
     }
-    cout << pacote.coordinates << " position package rcv"<<endl;
+    
+    cout << pacote.coordinates << " position package rcv" << endl;
     if (address[5] == 8) { // Endereco do servidor
         if (pacote.elapsed - ultimo_elapsed < 2000000) { // Intervalo aceitavel
             if (tick2 == 0) {
@@ -366,15 +376,11 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
             } else if (tick3 != 0) {
                 Tick tick4 = pacote.elapsed;
 
-                //cout << "Clock_velho: " << Alarm::elapsed();
-
                 Tick pd = ((tick2 - tick1) + (tick4 - tick3)) / 2;
                 Tick offset = (tick2 - tick1) - pd;
 
                 Alarm::_elapsed = Alarm::elapsed() - offset;
                 
-                //cout << " | Clock_novo: " << Alarm::elapsed() << endl;
-
                 tick1 = 0;
                 tick2 = 0;
                 tick3 = 0;
@@ -387,21 +393,18 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
 
         ultimo_elapsed = pacote.elapsed;
 
-        if(!anchor1.valid_position){
-            
+        if(!anchor1.valid_position) {
             anchor1.position = pacote.coordinates;
             anchor1.valid_position = true;
             anchor1.distance = spected_position - pacote.coordinates;
-
-        }else if(!anchor2.valid_position ){
-            if(anchor1.position != pacote.coordinates){
+        } else if(!anchor2.valid_position ) {
+            if(anchor1.position != pacote.coordinates) {
                 anchor2.position = pacote.coordinates;
                 anchor2.valid_position = true;
                 anchor2.distance = spected_position - pacote.coordinates;
             }
-
-        }else{
-            if(anchor1.position != pacote.coordinates && anchor2.position != pacote.coordinates){
+        } else {
+            if(anchor1.position != pacote.coordinates && anchor2.position != pacote.coordinates) {
                 anchor3.position = pacote.coordinates;
                 anchor3.valid_position = true;
                 anchor3.distance = spected_position - pacote.coordinates;
@@ -411,17 +414,10 @@ void SOS::update(NIC<Ethernet>::Observed * obs, const NIC<Ethernet>::Protocol & 
                 anchor1.valid_position = false;
                 anchor2.valid_position = false;
                 anchor3.valid_position = false;
-                cout <<"esperada " << spected_position << ", position "<< position << endl;
+                cout << "esperada " << spected_position << ", position " << position << endl;
             }
-
         }
-           
-
-    } else {
-        //cout << "Clock: " << Alarm::elapsed() << endl;
     }
-
-    //cout << pacote.coordinates<< endl;
 
     if (!notify(pacote.port_destination, buf)) {
         nic->free(buf);
@@ -432,9 +428,11 @@ SOS::SOS()
     SOS::nic = Traits<Ethernet>::DEVICES::Get<0>::Result::get(0);
     SOS::nic->attach(this, protocol);
     valid_position = false;
+    
     if (nic_address()[5] == 8) {
         gps = new GPS_Driver();
     }
+
     spected_position = Point<int,3>(100,90,0);
     _observed = new Observed();
 }
@@ -443,12 +441,6 @@ SOS::~SOS()
     SOS::nic->detach(this, protocol);
     delete _observed;
 }
-
-
-
-
-        
-
 
 __END_SYS
 
